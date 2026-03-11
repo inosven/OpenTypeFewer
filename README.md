@@ -30,7 +30,7 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 
 ```bash
 git clone https://github.com/inosven/OpenTypeFewer.git
-cd VoicePad
+cd OpenTypeFewer
 pip install -e .
 ```
 
