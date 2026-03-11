@@ -1,0 +1,68 @@
+language: "en"
+
+trigger_mode: "hold"
+hotkey: "ctrl+shift+space"
+mode_switch_hotkey: "ctrl+shift+m"
+auto_stop_on_focus_loss: true
+
+asr:
+  model_size: "large-v3"
+  language: null
+  device: "auto"
+  compute_type: "auto"
+
+output:
+  processing: "direct"
+  language: "source"
+  custom_prompt: ""
+
+languages:
+  - key: "source"
+    name_en: "Original Language"
+    name_zh: "原文语言"
+  - key: "zh"
+    name_en: "Chinese"
+    name_zh: "中文"
+  - key: "en"
+    name_en: "English"
+    name_zh: "英文"
+
+llm:
+  backend: "ollama"
+  ollama:
+    model: "qwen3.5"
+    base_url: "http://localhost:11434"
+    temperature: 0.3
+    extra_params:
+      think: false
+  remote:
+    provider: "anthropic"
+    model: "claude-sonnet-4-20250514"
+    api_key: ""
+    base_url: ""
+
+presets: []
+  # - name: "Business Email"
+  #   hotkey: "ctrl+shift+1"
+  #   processing: "custom"
+  #   language: "en"
+  #   custom_prompt: "Format as a business casual email"
+  # - name: "Chinese Polish"
+  #   hotkey: "ctrl+shift+2"
+  #   processing: "polish"
+  #   language: "zh"
+  #   custom_prompt: ""
+
+audio:
+  sample_rate: 16000
+  channels: 1
+  silence_threshold: 500
+  silence_duration: 2.0
+
+notification:
+  enabled: true
+  sound_enabled: true
+  sound_start: "start.wav"
+  sound_stop: "stop.wav"
+  sound_done: "done.wav"
+  sound_error: "error.wav"

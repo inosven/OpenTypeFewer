@@ -1,0 +1,16 @@
+logs/
+temp/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/output/
+.venv/
+.env
+*.spec
+
+CLAUDE.md
+claude_instructions/
+voicepad-handoff.md
