@@ -30,7 +30,7 @@
 
 ```bash
 git clone https://github.com/inosven/OpenTypeFewer.git
-cd VoicePad
+cd OpenTypeFewer
 pip install -e .
 ```
 
