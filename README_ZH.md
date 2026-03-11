@@ -29,7 +29,7 @@
 ### 从源码安装
 
 ```bash
-git clone https://github.com/nicekid1/VoicePad.git
+git clone https://github.com/inosven/OpenTypeFewer.git
 cd VoicePad
 pip install -e .
 ```
