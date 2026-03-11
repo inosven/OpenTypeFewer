@@ -11,6 +11,8 @@ build/output/
 .env
 *.spec
 
+tests/
+
 CLAUDE.md
 claude_instructions/
 voicepad-handoff.md
