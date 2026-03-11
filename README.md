@@ -29,7 +29,7 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 ### Install from Source
 
 ```bash
-git clone https://github.com/nicekid1/VoicePad.git
+git clone https://github.com/inosven/OpenTypeFewer.git
 cd VoicePad
 pip install -e .
 ```
