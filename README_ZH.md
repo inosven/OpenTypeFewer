@@ -1,4 +1,4 @@
-# VoicePad
+# OpenTypeFewer
 
 本地开源语音输入剪贴板工具。说完就贴。
 
@@ -20,9 +20,9 @@
 
 - **Python 3.10+**（从源码运行时需要）
 - **Ollama**（可选，本地 LLM 润色）— [下载 Ollama](https://ollama.com/download)
-  - 拉取模型：`ollama pull qwen3.5:0.8b`（快速）或 `ollama pull qwen3.5`（精确）
+  - 拉取模型：`ollama pull qwen3:1.7b`（快速）或 `ollama pull qwen3:8b`（精确）
 - **麦克风** — 使用系统默认麦克风
-- **NVIDIA GPU**（可选）— 安装 `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12` 以启用 GPU 加速语音识别
+- **NVIDIA GPU**（可选，Windows/Linux）— 安装 `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12` 以启用 GPU 加速语音识别
 
 ## 快速开始
 
@@ -40,9 +40,19 @@ pip install -e .
 python -m voicepad
 ```
 
-VoicePad 启动后常驻系统托盘。Whisper 模型会在首次使用时自动下载。
+OpenTypeFewer 启动后常驻系统托盘。Whisper 模型会在首次使用时自动下载。
 
-默认使用 `Ctrl+Shift+Space` 录音。
+默认快捷键：`Ctrl+Shift+Space`
+
+### macOS — 首次启动权限
+
+macOS 首次启动时需要授予两个权限：
+
+1. **辅助功能（Accessibility）** — 全局快捷键必需
+   `系统设置 > 隐私与安全性 > 辅助功能` → 添加 OpenTypeFewer
+
+2. **麦克风** — 录音必需
+   `系统设置 > 隐私与安全性 > 麦克风` → 允许 OpenTypeFewer
 
 ## 使用方法
 
@@ -50,7 +60,7 @@ VoicePad 启动后常驻系统托盘。Whisper 模型会在首次使用时自动
 |------|-----------|
 | 开始/停止录音 | `Ctrl+Shift+Space` |
 | 切换处理方式 | `Ctrl+Shift+M` |
-| 激活预设 | 用户自定义（如 `Ctrl+Shift+1`） |
+| 激活预设 | 用户自定义（如 `Ctrl+Alt+1`） |
 
 ### 触发模式
 
@@ -63,7 +73,7 @@ VoicePad 启动后常驻系统托盘。Whisper 模型会在首次使用时自动
 |------|------|
 | **直出** | 原始转写结果，不经过 LLM |
 | **润色** | 将口语转为流畅的书面语 |
-| **自定义** | 使用自定义 Prompt 处理 |
+| **自定义** | 使用自定义 Prompt 作为风格修饰 |
 
 ### 输出语言
 
@@ -75,6 +85,8 @@ VoicePad 启动后常驻系统托盘。Whisper 模型会在首次使用时自动
 
 唯一不调用 LLM 的组合是 **直出 + 原文语言**，其他所有组合都会调用 LLM。
 
+**自定义**模式下，自定义 Prompt 作为*风格修饰语*与输出语言叠加生效。例如将语言设为英文、自定义 Prompt 设为"这是 Teams 聊天，不要太正式"，则会以口语化的英文输出——语言指令和风格提示同时有效。
+
 ### 预设
 
 保存不同的输出配置并绑定快捷键。每个预设包含：
@@ -82,11 +94,13 @@ VoicePad 启动后常驻系统托盘。Whisper 模型会在首次使用时自动
 - 输出语言
 - 自定义 Prompt
 
-按下预设快捷键即可一键切换模式。在 设置 > 预设 中配置。
+按下预设快捷键即可一键切换模式。切换后托盘图标的悬浮提示会短暂显示当前预设名称作为确认。在 设置 > 预设 中配置。
+
+> **提示：** 预设快捷键不能是录音快捷键的前缀（反之亦然）。例如录音快捷键为 `Ctrl+Shift`，则不要用 `Ctrl+Shift+1` 作为预设——改用 `Ctrl+Alt+1`。
 
 ## 配置
 
-配置文件：`~/.voicepad/config.yaml`（首次运行自动生成）。
+配置文件：`~/.opentypefewer/config.yaml`（首次运行自动生成）。
 
 完整选项参见 [config.example.yaml](./config.example.yaml)。
 
@@ -102,7 +116,7 @@ VoicePad 启动后常驻系统托盘。Whisper 模型会在首次使用时自动
 python -m voicepad [选项]
 
 选项:
-  --config PATH         配置文件路径（默认：~/.voicepad/config.yaml）
+  --config PATH         配置文件路径（默认：~/.opentypefewer/config.yaml）
   --processing MODE     设置处理方式（direct/polish/custom）
   --language LANG       设置输出语言（source/zh/en）
   --ui-language LANG    设置界面语言（en/zh）
@@ -117,14 +131,6 @@ python -m voicepad [选项]
 
 ## 构建
 
-### Windows
-
-```batch
-build\build_win.bat
-```
-
-输出：`dist\VoicePad\VoicePad.exe`
-
 ### macOS
 
 ```bash
@@ -132,7 +138,17 @@ chmod +x build/build_mac.sh
 ./build/build_mac.sh
 ```
 
-输出：`dist/VoicePad-macos.dmg`
+输出：`dist/OpenTypeFewer.app` 和 `dist/OpenTypeFewer-macos.dmg`
+
+安装 DMG 后，首次启动需授予辅助功能和麦克风权限（见上文）。
+
+### Windows
+
+```batch
+build\build_win.bat
+```
+
+输出：`dist\VoicePad\VoicePad.exe`
 
 ## 项目结构
 
@@ -144,7 +160,7 @@ src/voicepad/
 ├── subsystems/
 │   ├── asr/                   # 语音识别（faster-whisper）
 │   ├── llm_engine/            # LLM 润色（Ollama / 远程 API）
-│   └── hotkey_listener/       # 全局快捷键（keyboard）
+│   └── hotkey_listener/       # 全局快捷键（macOS 用 pynput，Windows 用 keyboard）
 └── modules/
     ├── recorder/              # 音频录制（sounddevice）
     ├── clipboard/             # 剪贴板操作（pyperclip）

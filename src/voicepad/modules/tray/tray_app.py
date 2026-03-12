@@ -70,9 +70,9 @@ class TrayApp:
         import pystray
 
         self.tray_icon = pystray.Icon(
-            "VoicePad",
+            "OpenTypeFewer",
             icon=_create_tray_icon("idle"),
-            title="VoicePad",
+            title="OpenTypeFewer",
             menu=self._build_tray_menu(),
         )
         self.tray_icon.run(setup=self._on_tray_ready)
@@ -98,6 +98,25 @@ class TrayApp:
             self.tray_icon.icon = _create_tray_icon(icon_state)
         except Exception as icon_error:
             logger.warning(f"Icon update failed: {icon_error}")
+
+    def flash_preset_name(self, preset_name: str) -> None:
+        """Temporarily show preset name in tray tooltip as fallback feedback."""
+        if not self.tray_icon:
+            return
+        try:
+            self.tray_icon.title = f"OpenTypeFewer — {preset_name}"
+
+            def _reset():
+                import time
+                time.sleep(4)
+                try:
+                    self.tray_icon.title = "OpenTypeFewer"
+                except Exception:
+                    pass
+
+            threading.Thread(target=_reset, daemon=True).start()
+        except Exception as e:
+            logger.warning(f"Tray title update failed: {e}")
 
     def quit_tray(self) -> None:
         if self.tray_icon:

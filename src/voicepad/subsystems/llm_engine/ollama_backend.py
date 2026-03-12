@@ -48,8 +48,10 @@ class OllamaBackend:
                 think=False,
                 options={"temperature": self.temperature},
             )
-            logger.info(f"Ollama response received ({len(response['response'])} chars)")
-            return response["response"]
+            # ollama>=0.3 returns a GenerateResponse object, not a dict
+            text = response.response if hasattr(response, "response") else response["response"]
+            logger.info(f"Ollama response received ({len(text)} chars): {text[:100]!r}")
+            return text
         except Exception as generate_error:
             logger.error(f"Ollama generation failed: {generate_error}")
             return ""

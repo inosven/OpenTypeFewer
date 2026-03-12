@@ -509,7 +509,7 @@ class SettingsGui:
 
         customtkinter.CTkLabel(
             parent_frame,
-            text="VoicePad",
+            text="OpenTypeFewer",
             font=customtkinter.CTkFont(size=20, weight="bold"),
         ).pack(pady=(20, 5))
 
@@ -574,6 +574,7 @@ class SettingsGui:
             "Shift_L": "shift", "Shift_R": "shift",
             "Alt_L": "alt", "Alt_R": "alt",
             "Super_L": "windows", "Super_R": "windows",
+            "Meta_L": "cmd", "Meta_R": "cmd",  # macOS Command key
         }
 
         SPECIAL_KEYSYMS = {
@@ -582,21 +583,56 @@ class SettingsGui:
             "Up": "up", "Down": "down", "Left": "left", "Right": "right",
         }
 
+        # Shift-modified keysyms → base key name (so Shift+1 stores "1" not "!")
+        SHIFTED_KEYSYMS = {
+            "exclam": "1", "at": "2", "numbersign": "3", "dollar": "4",
+            "percent": "5", "asciicircum": "6", "ampersand": "7",
+            "asterisk": "8", "parenleft": "9", "parenright": "0",
+            "underscore": "-", "plus": "=",
+            "braceleft": "[", "braceright": "]", "bar": "\\",
+            "colon": ";", "quotedbl": "'",
+            "less": ",", "greater": ".", "question": "/",
+            "asciitilde": "`",
+        }
+
         pressed_keys = []
         capture_state = {"original": ""}
+
+        # Maps any modifier-altered character back to the physical base key.
+        # Covers three macOS tkinter behaviours:
+        #   • Shift+digit  → ASCII shifted char  (!@#$…)
+        #   • Option+digit → macOS Unicode char  (¡™£¢∞§¶•ªº)
+        #   • Option+punct → macOS Unicode char  (–≠"'«…æ≤≥÷`)
+        _CHAR_UNSHIFT = {
+            # Shift+digit (ASCII)
+            '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
+            '^': '6', '&': '7', '*': '8', '(': '9', ')': '0',
+            '_': '-', '+': '=', '{': '[', '}': ']', '|': '\\',
+            ':': ';', '"': "'", '<': ',', '>': '.', '?': '/',
+            '~': '`',
+            # Option+digit (macOS US keyboard)
+            '¡': '1', '™': '2', '£': '3', '¢': '4', '∞': '5',
+            '§': '6', '¶': '7', '•': '8', 'ª': '9', 'º': '0',
+            # Option+punct (macOS US keyboard)
+            '–': '-', '≠': '=', '\u201c': '[', '\u2018': ']', '«': '\\',
+            '…': ';', 'æ': "'", '≤': ',', '≥': '.', '÷': '/',
+        }
 
         def _resolve_key_name(event):
             if event.keysym in MODIFIER_KEYSYMS:
                 return MODIFIER_KEYSYMS[event.keysym]
             if event.keysym in SPECIAL_KEYSYMS:
                 return SPECIAL_KEYSYMS[event.keysym]
-            keycode = event.keycode
-            if 0x30 <= keycode <= 0x39:
-                return str(keycode - 0x30)
-            if 0x41 <= keycode <= 0x5A:
-                return chr(keycode).lower()
-            if 0x70 <= keycode <= 0x87:
-                return f"f{keycode - 0x70 + 1}"
+            if event.keysym in SHIFTED_KEYSYMS:
+                return SHIFTED_KEYSYMS[event.keysym]
+            # Single character: unshift if it's a shifted symbol, else lowercase
+            if len(event.keysym) == 1:
+                if event.keysym in _CHAR_UNSHIFT:
+                    return _CHAR_UNSHIFT[event.keysym]
+                return event.keysym.lower()
+            # F-keys: keysym is "F1", "F2", …
+            if event.keysym.startswith("F") and event.keysym[1:].isdigit():
+                return event.keysym.lower()
             return event.keysym.lower()
 
         def on_key_press(event):

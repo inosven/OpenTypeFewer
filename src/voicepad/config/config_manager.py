@@ -83,7 +83,7 @@ class ConfigManager:
         if config_path:
             self.config_path = Path(config_path)
         else:
-            self.config_path = Path.home() / ".voicepad" / "config.yaml"
+            self.config_path = Path.home() / ".opentypefewer" / "config.yaml"
         self.config_data = {}
 
     def load_config(self) -> dict:

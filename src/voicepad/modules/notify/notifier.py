@@ -28,15 +28,33 @@ class Notifier:
             return
 
         try:
-            from plyer import notification as plyer_notification
-            plyer_notification.notify(
-                title=title,
-                message=message,
-                app_name="VoicePad",
-                timeout=3,
-            )
+            if self.platform_name == "Darwin":
+                self._send_notification_macos(title, message)
+            else:
+                from plyer import notification as plyer_notification
+                plyer_notification.notify(
+                    title=title,
+                    message=message,
+                    app_name="OpenTypeFewer",
+                    timeout=3,
+                )
         except Exception as notify_error:
             logger.error(f"Notification failed: {notify_error}")
+
+    def _send_notification_macos(self, title: str, message: str) -> None:
+        import subprocess
+        safe_title = title.replace('\\', '\\\\').replace('"', '\\"')
+        safe_message = message.replace('\\', '\\\\').replace('"', '\\"')
+        script = f'display notification "{safe_message}" with title "{safe_title}"'
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode != 0:
+                logger.warning(f"osascript notification failed: {result.stderr.strip()}")
+        except Exception as e:
+            logger.warning(f"osascript notification error: {e}")
 
     def play_sound(self, sound_type: str) -> None:
         if not self.config_manager.get_value("notification.sound_enabled", True):

@@ -1,7 +1,7 @@
 """English string table."""
 
 STRINGS = {
-    "tray.title": "VoicePad",
+    "tray.title": "OpenTypeFewer",
     "tray.processing": "Processing",
     "tray.processing.direct": "Direct",
     "tray.processing.polish": "Polish",
@@ -32,7 +32,7 @@ STRINGS = {
     "notify.mic_permission": "Microphone access denied. Grant permission in system settings.",
     "notify.no_speech": "No speech detected.",
 
-    "settings.title": "VoicePad Settings",
+    "settings.title": "OpenTypeFewer Settings",
     "settings.tab.general": "General",
     "settings.tab.asr": "Speech Recognition",
     "settings.tab.llm": "LLM",

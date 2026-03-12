@@ -1,7 +1,7 @@
 """Chinese string table."""
 
 STRINGS = {
-    "tray.title": "VoicePad",
+    "tray.title": "OpenTypeFewer",
     "tray.processing": "处理方式",
     "tray.processing.direct": "直出",
     "tray.processing.polish": "润色",
@@ -32,7 +32,7 @@ STRINGS = {
     "notify.mic_permission": "麦克风权限被拒绝，请在系统设置中授权。",
     "notify.no_speech": "未检测到语音。",
 
-    "settings.title": "VoicePad 设置",
+    "settings.title": "OpenTypeFewer 设置",
     "settings.tab.general": "通用",
     "settings.tab.asr": "语音识别",
     "settings.tab.llm": "语言模型",

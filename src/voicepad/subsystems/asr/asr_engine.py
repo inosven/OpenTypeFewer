@@ -2,6 +2,7 @@
 
 import os
 import sys
+import platform
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -64,11 +65,17 @@ class ASREngine:
 
             os.makedirs(MODEL_CACHE_DIR, exist_ok=True)
 
+            # cpu_threads=1 prevents ctranslate2 thread-pool crashes in
+            # PyInstaller bundles caused by multiple dylib copies being loaded.
+            import sys
+            cpu_threads = 1 if getattr(sys, "frozen", False) else 0  # 0 = auto
             self.whisper_model = WhisperModel(
                 self.model_size,
                 device=resolved_device,
                 compute_type=resolved_compute,
                 download_root=MODEL_CACHE_DIR,
+                cpu_threads=cpu_threads,
+                num_workers=1,
             )
             logger.info("ASR model loaded successfully")
             return True
@@ -80,6 +87,12 @@ class ASREngine:
         if not audio_path or not os.path.exists(audio_path):
             return ASRResult(transcribed_text="", detected_language="", confidence_score=0.0)
 
+        # On macOS frozen bundles, run ASR in an isolated subprocess to avoid
+        # ctranslate2 worker-thread crashes (SIGSEGV at 0x4 in JobQueue::get).
+        # This crash is macOS-specific; Windows frozen builds use direct inference.
+        if getattr(sys, "frozen", False) and platform.system() == "Darwin":
+            return self._transcribe_via_subprocess(audio_path)
+
         if not self.whisper_model:
             model_loaded = self.load_model()
             if not model_loaded:
@@ -88,7 +101,11 @@ class ASREngine:
                 )
 
         try:
-            transcribe_kwargs = {"beam_size": 5, "vad_filter": True}
+            transcribe_kwargs = {
+                "beam_size": 5,
+                "vad_filter": True,
+                "vad_parameters": {"threshold": 0.3},
+            }
             if self.forced_language:
                 transcribe_kwargs["language"] = self.forced_language
 
@@ -123,6 +140,67 @@ class ASREngine:
             )
         except Exception as transcribe_error:
             logger.error(f"Transcription failed: {transcribe_error}")
+            return ASRResult(transcribed_text="", detected_language="", confidence_score=0.0)
+
+    def _transcribe_via_subprocess(self, audio_path: str) -> ASRResult:
+        """Run transcription in an isolated subprocess (used when frozen)."""
+        import json
+        import subprocess
+
+        resolved_device = self._resolve_device()
+        resolved_compute = self._resolve_compute_type(resolved_device)
+
+        cmd = [
+            sys.executable,
+            "--asr-only",
+            audio_path,
+            self.model_size,
+            resolved_device,
+            resolved_compute,
+        ]
+        if self.forced_language:
+            cmd += ["--language", self.forced_language]
+        cmd += ["--model-cache", MODEL_CACHE_DIR]
+
+        logger.info(f"Running ASR subprocess: {' '.join(cmd)}")
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if proc.returncode != 0:
+                logger.error(f"ASR subprocess stderr: {proc.stderr}")
+                return ASRResult(transcribed_text="", detected_language="", confidence_score=0.0)
+
+            result = json.loads(proc.stdout.strip())
+            if result.get("error"):
+                logger.error(f"ASR subprocess error: {result['error']}")
+                return ASRResult(transcribed_text="", detected_language="", confidence_score=0.0)
+
+            full_text = result.get("text", "")
+            detected_lang = result.get("language", "")
+            lang_probability = result.get("confidence", 0.0)
+
+            if full_text:
+                logger.info(
+                    f"Transcribed: {full_text[:80]}... "
+                    f"(lang={detected_lang}, conf={lang_probability:.2f})"
+                )
+            else:
+                logger.info("No speech detected in audio")
+
+            return ASRResult(
+                transcribed_text=full_text,
+                detected_language=detected_lang,
+                confidence_score=lang_probability,
+            )
+        except subprocess.TimeoutExpired:
+            logger.error("ASR subprocess timed out")
+            return ASRResult(transcribed_text="", detected_language="", confidence_score=0.0)
+        except Exception as sub_error:
+            logger.error(f"ASR subprocess failed: {sub_error}")
             return ASRResult(transcribed_text="", detected_language="", confidence_score=0.0)
 
     def update_config(self, config_manager) -> None:
@@ -166,4 +244,8 @@ class ASREngine:
 
         if device_name == "cuda":
             return "float16"
+        # On macOS frozen bundles, int8 can cause ctranslate2 worker-thread
+        # crashes; use float32 instead. Windows frozen builds are unaffected.
+        if getattr(sys, "frozen", False) and platform.system() == "Darwin":
+            return "float32"
         return "int8"

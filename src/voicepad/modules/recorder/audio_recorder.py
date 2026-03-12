@@ -33,8 +33,19 @@ class AudioRecorder:
         self.recording_lock = threading.Lock()
 
     def start_recording(self) -> bool:
+        # If recording_active is stuck True (e.g. from a previous race condition),
+        # force-reset before starting a new recording.
         if self.recording_active:
-            return False
+            logger.warning("start_recording: recording_active stuck, force-resetting")
+            self.recording_active = False
+            if self.recording_stream:
+                try:
+                    self.recording_stream.stop()
+                    self.recording_stream.close()
+                except Exception:
+                    pass
+                self.recording_stream = None
+            self.audio_frames = []
 
         import sounddevice
 
@@ -57,7 +68,15 @@ class AudioRecorder:
             return False
 
     def stop_recording(self) -> str:
+        # In hold mode, the stop thread can race ahead of the start thread.
+        # Wait briefly for recording_active to be set before giving up.
         if not self.recording_active:
+            deadline = time.time() + 0.4
+            while not self.recording_active and time.time() < deadline:
+                time.sleep(0.02)
+
+        if not self.recording_active:
+            logger.warning("stop_recording: not recording (start may not have run yet)")
             return None
 
         self.recording_active = False
@@ -75,6 +94,11 @@ class AudioRecorder:
                 logger.warning("No audio frames captured")
                 return None
             audio_data = np.concatenate(self.audio_frames, axis=0)
+
+        duration = len(audio_data) / self.sample_rate
+        if duration < 0.5:
+            logger.warning(f"Recording too short ({duration:.2f}s), discarding")
+            return None
 
         temp_dir = _get_temp_dir()
         os.makedirs(temp_dir, exist_ok=True)

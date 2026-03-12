@@ -16,3 +16,4 @@ tests/
 CLAUDE.md
 claude_instructions/
 voicepad-handoff.md
+.DS_Store
