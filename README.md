@@ -27,6 +27,8 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 ## Quick Start
 
 ### Download realease, install and ready to go
+[Windows](https://github.com/inosven/OpenTypeFewer/releases/tag/v0.1.0)
+[MacOS](https://github.com/inosven/OpenTypeFewer/releases/tag/MacOS)
 
 ### Install from Source
 
