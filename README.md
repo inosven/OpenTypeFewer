@@ -26,6 +26,8 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 
 ## Quick Start
 
+### Download realease, install and ready to go
+
 ### Install from Source
 
 ```bash
