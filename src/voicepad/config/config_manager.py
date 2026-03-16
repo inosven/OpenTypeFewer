@@ -29,8 +29,12 @@ DEFAULT_CONFIG = {
         {"key": "zh", "name_en": "Chinese", "name_zh": "中文"},
         {"key": "en", "name_en": "English", "name_zh": "英文"},
     ],
+    "ui": {
+        "theme": "system",
+    },
     "llm": {
         "backend": "ollama",
+        "thinking_enabled": False,
         "ollama": {
             "model": "qwen3.5",
             "base_url": "http://localhost:11434",
@@ -42,6 +46,12 @@ DEFAULT_CONFIG = {
             "model": "claude-sonnet-4-20250514",
             "api_key": "",
             "base_url": "",
+        },
+        "compatible": {
+            "base_url": "http://localhost:1234/v1",
+            "model": "",
+            "api_key": "",
+            "temperature": 0.3,
         },
     },
     "presets": [],

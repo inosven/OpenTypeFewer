@@ -5,6 +5,20 @@ import logging
 logger = logging.getLogger("voicepad.llm.ollama")
 
 
+def list_ollama_models(base_url: str) -> list[str]:
+    try:
+        import urllib.request
+        import json
+
+        api_url = base_url.rstrip("/") + "/api/tags"
+        request = urllib.request.Request(api_url)
+        with urllib.request.urlopen(request, timeout=3) as response_data:
+            payload = json.loads(response_data.read())
+        return [model_entry["name"] for model_entry in payload.get("models", [])]
+    except Exception:
+        return []
+
+
 class OllamaBackend:
     def __init__(self, config_manager):
         self.config_manager = config_manager
@@ -42,10 +56,11 @@ class OllamaBackend:
                 timeout=httpx.Timeout(timeout=60.0),
             )
 
+            thinking_flag = self.extra_params.get("think", False)
             response = client.generate(
                 model=self.model_name,
                 prompt=prompt_text,
-                think=False,
+                think=thinking_flag,
                 options={"temperature": self.temperature},
             )
             # ollama>=0.3 returns a GenerateResponse object, not a dict

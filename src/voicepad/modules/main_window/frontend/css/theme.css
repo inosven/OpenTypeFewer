@@ -1,0 +1,115 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1c1c1e;
+  --surface: #2c2c2e;
+  --surface-hover: #3a3a3c;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-focus: rgba(255, 255, 255, 0.25);
+  --text: rgba(255, 255, 255, 0.85);
+  --text-secondary: rgba(255, 255, 255, 0.45);
+  --accent: rgba(130, 120, 255, 0.85);
+  --accent-glow: rgba(130, 120, 255, 0.2);
+  --recording: rgba(255, 80, 80, 0.9);
+  --recording-glow: rgba(255, 80, 80, 0.25);
+  --processing: rgba(255, 185, 50, 0.9);
+  --processing-glow: rgba(255, 185, 50, 0.2);
+  --input-bg: rgba(255, 255, 255, 0.06);
+  --scrollbar: rgba(255, 255, 255, 0.15);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --danger: rgba(255, 80, 80, 0.85);
+}
+
+:root[data-theme="light"] {
+  --bg: #f2f2f7;
+  --surface: #ffffff;
+  --surface-hover: #f0f0f5;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-focus: rgba(0, 0, 0, 0.25);
+  --text: rgba(0, 0, 0, 0.85);
+  --text-secondary: rgba(0, 0, 0, 0.45);
+  --accent: rgba(100, 90, 220, 0.85);
+  --accent-glow: rgba(100, 90, 220, 0.15);
+  --recording: rgba(220, 50, 50, 0.85);
+  --recording-glow: rgba(220, 50, 50, 0.15);
+  --processing: rgba(200, 140, 20, 0.85);
+  --processing-glow: rgba(200, 140, 20, 0.15);
+  --input-bg: rgba(0, 0, 0, 0.04);
+  --scrollbar: rgba(0, 0, 0, 0.15);
+  --shadow: rgba(0, 0, 0, 0.12);
+  --danger: rgba(220, 50, 50, 0.85);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 3px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--border-focus);
+}
+
+select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

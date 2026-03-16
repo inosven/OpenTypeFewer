@@ -1,12 +1,13 @@
 """Main application controller for VoicePad."""
 
+import json
 import os
 import sys
 import logging
 import platform
 import threading
-import tkinter as tk
 from datetime import datetime
+from pathlib import Path
 
 IS_MACOS = platform.system() == "Darwin"
 
@@ -16,7 +17,6 @@ from voicepad.modules.notify.notifier import Notifier
 from voicepad.modules.clipboard.clipboard_writer import copy_to_clipboard
 from voicepad.modules.recorder.audio_recorder import AudioRecorder
 from voicepad.modules.tray.tray_app import TrayApp
-from voicepad.modules.settings_window.settings_gui import SettingsGui
 from voicepad.subsystems.asr.asr_engine import ASREngine
 from voicepad.subsystems.llm_engine.llm_router import LLMRouter
 from voicepad.subsystems.hotkey_listener.hotkey_manager import HotkeyManager
@@ -93,13 +93,13 @@ class VoicePadApp:
         # ASR subprocesses that compete for CPU and often both return "no speech".
         self._pipeline_lock = threading.Lock()
 
-        self.tk_root = None
-        self.settings_gui = None
+        self.panel_process = None
+        self._status_file_path = self._resolve_status_file_path()
 
     def run(self) -> None:
+        self.write_ui_status()
+
         if IS_MACOS:
-            # On macOS, AppKit (used by pystray) must run on the main thread.
-            # We run pystray directly here and skip tkinter mainloop.
             warmup_thread = threading.Thread(target=self._warmup_models, daemon=True)
             warmup_thread.start()
 
@@ -108,16 +108,6 @@ class VoicePadApp:
             logger.info("OpenTypeFewer running (macOS mode)")
             self.tray_app.run_tray()  # blocks main thread via AppKit run loop
         else:
-            self.tk_root = tk.Tk()
-            self.tk_root.withdraw()
-
-            self.settings_gui = SettingsGui(
-                self.config_manager,
-                self.i18n_manager,
-                on_save_callback=self.reload_config,
-                tk_root=self.tk_root,
-            )
-
             tray_thread = threading.Thread(target=self.tray_app.run_tray, daemon=True)
             tray_thread.start()
 
@@ -126,8 +116,11 @@ class VoicePadApp:
 
             self.hotkey_manager.start_listening()
 
-            logger.info("OpenTypeFewer running (main loop started)")
-            self.tk_root.mainloop()
+            logger.info("OpenTypeFewer running (Windows mode)")
+            # Keep main thread alive for Windows — block on tray
+            import time
+            while True:
+                time.sleep(1)
 
     def _warmup_models(self) -> None:
         logger.info("Pre-loading models at startup")
@@ -147,6 +140,7 @@ class VoicePadApp:
             self.notifier.play_sound("start")
             self.tray_app.update_icon("recording")
             self.audio_recorder.start_recording()
+            self.write_ui_status("recording")
         except Exception as start_error:
             logger.error(f"Failed to start recording: {start_error}")
 
@@ -161,8 +155,11 @@ class VoicePadApp:
             self.tray_app.update_icon("idle")
             return
 
+        self.write_ui_status("processing")
+
         if not audio_file_path:
             self.tray_app.update_icon("idle")
+            self.write_ui_status("ready")
             return
 
         # Prevent concurrent pipelines: if ASR/LLM is still running from a
@@ -228,7 +225,9 @@ class VoicePadApp:
             self.config_manager.set_value("output.processing", preset_processing)
             self.config_manager.set_value("output.language", preset_language)
             self.config_manager.set_value("output.custom_prompt", preset_prompt)
+            self.config_manager.set_value("active_preset_name", preset_name)
             self.config_manager.save_config()
+            self.write_ui_status()
 
             self.notifier.send_notification(
                 self.i18n_manager.translate("tray.title"),
@@ -238,7 +237,6 @@ class VoicePadApp:
             )
             self.notifier.play_sound("done")
             self.tray_app.rebuild_menu()
-            self.tray_app.flash_preset_name(preset_name)
             logger.info(
                 f"Preset activated: {preset_name} "
                 f"(processing={preset_processing}, language={preset_language})"
@@ -246,27 +244,95 @@ class VoicePadApp:
         except Exception as preset_error:
             logger.error(f"Preset activation failed: {preset_error}")
 
+    def show_panel(self) -> None:
+        if self.panel_process and self.panel_process.poll() is None:
+            return
+        import subprocess
+        config_path = str(self.config_manager.config_path)
+        status_file_path = str(self._status_file_path)
+        if getattr(sys, "frozen", False):
+            cmd = [sys.executable, "--panel-only", config_path, status_file_path]
+        else:
+            cmd = [sys.executable, "-m", "voicepad.panel_subprocess", config_path, status_file_path]
+        self.panel_process = subprocess.Popen(cmd)
+        threading.Thread(target=self._watch_panel_for_settings_signal, daemon=True).start()
+
+    def _watch_panel_for_settings_signal(self) -> None:
+        signal_file_path = Path("temp") / "open_settings.signal"
+        while self.panel_process and self.panel_process.poll() is None:
+            if signal_file_path.exists():
+                try:
+                    signal_file_path.unlink()
+                except OSError:
+                    pass
+                self.open_settings()
+            import time
+            time.sleep(0.2)
+
     def open_settings(self) -> None:
-        if IS_MACOS:
-            # On macOS, pystray owns the main thread (AppKit), so tkinter must
-            # run in a separate process that has its own main thread.
-            import subprocess
-            config_path = str(self.config_manager.config_path)
-            language = self.config_manager.get_value("language", "en")
-            if getattr(sys, "frozen", False):
-                # PyInstaller bundle: use the bundled executable with an internal flag
-                cmd = [sys.executable, "--settings-only", config_path, language]
-            else:
-                # Development: run the settings module directly
-                cmd = [sys.executable, "-m", "voicepad.settings_subprocess", config_path, language]
-            proc = subprocess.Popen(cmd)
-            # Reload config after the settings window closes.
-            def _watch_settings_proc():
-                proc.wait()
-                self.reload_config()
-            threading.Thread(target=_watch_settings_proc, daemon=True).start()
-        elif self.tk_root and self.settings_gui:
-            self.tk_root.after(0, self.settings_gui.show_window)
+        import subprocess
+        config_path = str(self.config_manager.config_path)
+        if getattr(sys, "frozen", False):
+            cmd = [sys.executable, "--settings-only", config_path]
+        else:
+            cmd = [sys.executable, "-m", "voicepad.settings_subprocess", config_path]
+        proc = subprocess.Popen(cmd)
+
+        def _watch_settings_proc():
+            proc.wait()
+            self.reload_config()
+
+        threading.Thread(target=_watch_settings_proc, daemon=True).start()
+
+    def write_ui_status(self, state: str = "ready", volume_level: float = 0.0) -> None:
+        try:
+            preset_name = self._get_active_preset_name()
+            processing_style = self.config_manager.get_value("output.processing", "direct")
+            output_language = self.config_manager.get_value("output.language", "source")
+            hotkey_raw = self.config_manager.get_value("hotkey", "ctrl+shift+space")
+
+            mode_label = f"{processing_style.capitalize()} · {output_language.capitalize()}"
+            hotkey_display = self._format_hotkey_for_display(hotkey_raw)
+
+            status_payload = {
+                "state": state,
+                "preset_name": preset_name,
+                "mode_label": mode_label,
+                "hotkey_display": hotkey_display,
+                "volume_level": volume_level,
+                "theme": self.config_manager.get_value("ui.theme", "system"),
+            }
+
+            status_path = Path(self._status_file_path)
+            status_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(status_path, "w", encoding="utf-8") as status_file:
+                json.dump(status_payload, status_file)
+        except Exception as write_error:
+            logger.warning(f"Failed to write UI status: {write_error}")
+
+    def _get_active_preset_name(self) -> str:
+        active_preset = self.config_manager.get_value("active_preset_name", "")
+        if active_preset:
+            return active_preset
+        processing_style = self.config_manager.get_value("output.processing", "direct")
+        output_language = self.config_manager.get_value("output.language", "source")
+        if processing_style == "direct" and output_language == "source":
+            return "OpenTypeFewer"
+        return "Custom"
+
+    def _format_hotkey_for_display(self, hotkey_raw: str) -> str:
+        display_map = {
+            "ctrl": "⌃", "shift": "⇧", "alt": "⌥", "cmd": "⌘",
+            "space": "Space", "tab": "Tab", "enter": "Enter",
+        }
+        parts = hotkey_raw.split("+")
+        return "".join(display_map.get(part.lower(), part.upper()) for part in parts)
+
+    def _resolve_status_file_path(self) -> str:
+        if getattr(sys, "frozen", False):
+            return os.path.join(os.path.expanduser("~"), ".opentypefewer", "ui_status.json")
+        project_root = Path(__file__).parent.parent.parent
+        return str(project_root / "temp" / "ui_status.json")
 
     def reload_config(self) -> None:
         logger.info("Reloading configuration")
@@ -359,6 +425,7 @@ class VoicePadApp:
         finally:
             self._pipeline_lock.release()
             self.tray_app.update_icon("idle")
+            self.write_ui_status("ready")
             self._cleanup_temp_audio(audio_file_path)
 
     def _cleanup_temp_audio(self, audio_file_path: str) -> None:

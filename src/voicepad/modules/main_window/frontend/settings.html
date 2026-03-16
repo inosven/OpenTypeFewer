@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenTypeFewer Settings</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <style>
+    html, body {
+      width: 680px;
+      height: 500px;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+    }
+
+    /* ── Sidebar ───────────────────────────────── */
+    .sidebar {
+      width: 160px;
+      min-width: 160px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 8px;
+      gap: 2px;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding: 4px 10px 10px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 13px;
+      transition: background 0.12s, color 0.12s;
+      user-select: none;
+    }
+
+    .nav-item:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: var(--accent-glow);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+      flex-shrink: 0;
+    }
+
+    /* ── Content area ──────────────────────────── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      animation: fade-in 0.15s ease-out;
+    }
+
+    .tab-panel.active {
+      display: flex;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* ── Form groups ───────────────────────────── */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+    }
+
+    .form-label {
+      font-size: 13px;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .form-label-secondary {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .form-label-group {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select,
+    textarea {
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 220px;
+    }
+
+    textarea {
+      width: 100%;
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--border-focus);
+    }
+
+    /* ── Toggle switch ─────────────────────────── */
+    .toggle-wrapper {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .toggle-wrapper input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-slider:before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 3px;
+      top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle-wrapper input:checked + .toggle-slider {
+      background: var(--accent);
+    }
+
+    .toggle-wrapper input:checked + .toggle-slider:before {
+      transform: translateX(18px);
+    }
+
+    .toggle-wrapper input:disabled + .toggle-slider {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Provider sub-tabs ─────────────────────── */
+    .sub-tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+      margin-bottom: 16px;
+    }
+
+    .sub-tab-btn {
+      padding: 6px 14px;
+      border-radius: 8px 8px 0 0;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      border-bottom: none;
+      transition: background 0.12s, color 0.12s;
+      cursor: pointer;
+    }
+
+    .sub-tab-btn:hover {
+      color: var(--text);
+      background: var(--surface-hover);
+    }
+
+    .sub-tab-btn.active {
+      color: var(--text);
+      font-weight: 600;
+      background: var(--bg);
+      border-color: var(--border);
+      border-bottom-color: var(--bg);
+    }
+
+    .sub-tab-panel {
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sub-tab-panel.active {
+      display: flex;
+    }
+
+    /* ── Hotkey capture ────────────────────────── */
+    .hotkey-capture {
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: "SF Mono", "Menlo", monospace;
+      font-size: 13px;
+      width: 220px;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s;
+    }
+
+    .hotkey-capture.capturing {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Preset list ───────────────────────────── */
+    .preset-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .preset-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .preset-item-name {
+      flex: 1;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .preset-item-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .preset-item-delete {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .preset-item-delete:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* ── Buttons ───────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: opacity 0.12s, background 0.12s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.85;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+    }
+
+    /* ── Mic test bar ──────────────────────────── */
+    .mic-test-bar-container {
+      height: 6px;
+      background: var(--surface);
+      border-radius: 3px;
+      overflow: hidden;
+      width: 100%;
+      border: 1px solid var(--border);
+    }
+
+    .mic-test-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.08s ease-out;
+      width: 0%;
+    }
+
+    /* ── Volume bar visualizer ─────────────────── */
+    .mic-volume-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 32px;
+    }
+
+    .mic-volume-bar {
+      width: 4px;
+      border-radius: 2px;
+      background: var(--accent);
+      min-height: 4px;
+      transition: height 0.08s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="sidebar">
+    <div class="sidebar-title">Settings</div>
+    <div class="nav-item active" data-tab="general">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20A10 10 0 0 1 12 2zm0 2a8 8 0 1 0 0 16A8 8 0 0 0 12 4zm0 3a1 1 0 0 1 1 1v4h3a1 1 0 0 1 0 2H11a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/></svg>
+      General
+    </div>
+    <div class="nav-item" data-tab="model">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+      Model Provider
+    </div>
+    <div class="nav-item" data-tab="hotkeys">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20 5H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1zM7 9h2v2H7V9zm0 4h2v2H7v-2zm4-4h2v2h-2V9zm0 4h6v2h-6v-2zm4-4h2v2h-2V9z"/></svg>
+      Hotkeys
+    </div>
+    <div class="nav-item" data-tab="presets">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      Presets
+    </div>
+    <div class="nav-item" data-tab="about">
+      <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20A10 10 0 0 1 12 2zm0 2a8 8 0 1 0 0 16A8 8 0 0 0 12 4zm0 7a1 1 0 0 1 1 1v4a1 1 0 0 1-2 0v-4a1 1 0 0 1 1-1zm0-3a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>
+      About
+    </div>
+  </nav>
+
+  <main class="content">
+
+    <!-- ── General ── -->
+    <div class="tab-panel active" id="tab-general">
+      <div class="section-title">General</div>
+      <div class="section-divider"></div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Theme</div>
+          <div class="form-label-secondary">Appearance of all windows</div>
+        </div>
+        <select id="setting-theme">
+          <option value="system">System</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Interface Language</div>
+          <div class="form-label-secondary">Menu and notification language</div>
+        </div>
+        <select id="setting-ui-language">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Trigger Mode</div>
+          <div class="form-label-secondary">How the hotkey activates recording</div>
+        </div>
+        <select id="setting-trigger-mode">
+          <option value="hold">Hold</option>
+          <option value="toggle">Toggle</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Auto-stop on Focus Loss</div>
+          <div class="form-label-secondary">Stop recording if window focus changes</div>
+        </div>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="setting-auto-stop">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Sound Notifications</div>
+          <div class="form-label-secondary">Play chimes on start, stop, and done</div>
+        </div>
+        <label class="toggle-wrapper">
+          <input type="checkbox" id="setting-sound-enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Microphone Test</div>
+          <div class="form-label-secondary">Speak to see live volume level</div>
+        </div>
+        <button class="btn btn-secondary" id="mic-test-btn">Test Mic</button>
+      </div>
+
+      <div class="mic-volume-bars" id="mic-volume-bars" style="display:none">
+        <div class="mic-volume-bar" id="mbar0"></div>
+        <div class="mic-volume-bar" id="mbar1"></div>
+        <div class="mic-volume-bar" id="mbar2"></div>
+        <div class="mic-volume-bar" id="mbar3"></div>
+        <div class="mic-volume-bar" id="mbar4"></div>
+        <div class="mic-volume-bar" id="mbar5"></div>
+        <div class="mic-volume-bar" id="mbar6"></div>
+        <div class="mic-volume-bar" id="mbar7"></div>
+      </div>
+    </div>
+
+    <!-- ── Model Provider ── -->
+    <div class="tab-panel" id="tab-model">
+      <div class="section-title">Model Provider</div>
+      <div class="section-divider"></div>
+
+      <div class="sub-tab-bar">
+        <button class="sub-tab-btn active" data-provider="ollama">Ollama</button>
+        <button class="sub-tab-btn" data-provider="anthropic">Anthropic</button>
+        <button class="sub-tab-btn" data-provider="openai">OpenAI</button>
+        <button class="sub-tab-btn" data-provider="compatible">Compatible</button>
+      </div>
+
+      <!-- Ollama -->
+      <div class="sub-tab-panel active" id="provider-ollama">
+        <div class="form-row">
+          <div class="form-label">Base URL</div>
+          <input type="text" id="ollama-base-url" placeholder="http://localhost:11434">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Model</div>
+          <select id="ollama-model-select" style="width:220px">
+            <option value="">Loading...</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label-group">
+            <div class="form-label">Temperature</div>
+            <div class="form-label-secondary">0.0 = focused, 1.0 = creative</div>
+          </div>
+          <input type="text" id="ollama-temperature" placeholder="0.3" style="width:80px">
+        </div>
+        <div class="form-row">
+          <div class="form-label-group">
+            <div class="form-label">Enable Thinking</div>
+            <div class="form-label-secondary">Extended reasoning (Qwen3 + compatible models)</div>
+          </div>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="ollama-thinking">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Anthropic -->
+      <div class="sub-tab-panel" id="provider-anthropic">
+        <div class="form-row">
+          <div class="form-label">API Key</div>
+          <input type="password" id="anthropic-api-key" placeholder="sk-ant-...">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Model</div>
+          <input type="text" id="anthropic-model" placeholder="claude-sonnet-4-20250514">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Base URL</div>
+          <input type="text" id="anthropic-base-url" placeholder="Leave blank for default">
+        </div>
+        <div class="form-row">
+          <div class="form-label-group">
+            <div class="form-label">Enable Thinking</div>
+            <div class="form-label-secondary">Extended thinking (claude-3-7+ models)</div>
+          </div>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="anthropic-thinking">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- OpenAI -->
+      <div class="sub-tab-panel" id="provider-openai">
+        <div class="form-row">
+          <div class="form-label">API Key</div>
+          <input type="password" id="openai-api-key" placeholder="sk-...">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Model</div>
+          <input type="text" id="openai-model" placeholder="gpt-4o">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Base URL</div>
+          <input type="text" id="openai-base-url" placeholder="Leave blank for default">
+        </div>
+        <div class="form-row">
+          <div class="form-label-group">
+            <div class="form-label">Enable Thinking</div>
+            <div class="form-label-secondary">reasoning_effort=high (o-series models only)</div>
+          </div>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="openai-thinking">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Compatible -->
+      <div class="sub-tab-panel" id="provider-compatible">
+        <div class="form-row">
+          <div class="form-label">Base URL</div>
+          <input type="text" id="compatible-base-url" placeholder="http://localhost:1234/v1">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Model</div>
+          <input type="text" id="compatible-model" placeholder="local-model">
+        </div>
+        <div class="form-row">
+          <div class="form-label">API Key</div>
+          <input type="password" id="compatible-api-key" placeholder="Optional">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Temperature</div>
+          <input type="text" id="compatible-temperature" placeholder="0.3" style="width:80px">
+        </div>
+        <div class="form-row">
+          <div class="form-label-group">
+            <div class="form-label">Enable Thinking</div>
+            <div class="form-label-secondary">Attempts reasoning_effort=high, ignored if unsupported</div>
+          </div>
+          <label class="toggle-wrapper">
+            <input type="checkbox" id="compatible-thinking">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:8px;">
+        <button class="btn btn-primary" id="save-model-btn">Save</button>
+      </div>
+    </div>
+
+    <!-- ── Hotkeys ── -->
+    <div class="tab-panel" id="tab-hotkeys">
+      <div class="section-title">Hotkeys</div>
+      <div class="section-divider"></div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Record Hotkey</div>
+          <div class="form-label-secondary">Click to capture a new hotkey</div>
+        </div>
+        <div class="hotkey-capture" id="hotkey-record" tabindex="0">⌃⇧Space</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Mode Switch Hotkey</div>
+          <div class="form-label-secondary">Cycles Direct → Polish → Custom</div>
+        </div>
+        <div class="hotkey-capture" id="hotkey-mode-switch" tabindex="0">⌃⇧M</div>
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:8px;">
+        <button class="btn btn-primary" id="save-hotkeys-btn">Save</button>
+      </div>
+    </div>
+
+    <!-- ── Presets ── -->
+    <div class="tab-panel" id="tab-presets">
+      <div class="section-title">Presets</div>
+      <div class="section-divider"></div>
+
+      <div class="preset-list" id="preset-list"></div>
+
+      <div style="margin-top:12px; border:1px solid var(--border); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px;">
+        <div style="font-weight:600; font-size:13px; margin-bottom:4px;">New Preset</div>
+        <div class="form-row" style="padding:0">
+          <div class="form-label">Name</div>
+          <input type="text" id="new-preset-name" placeholder="Business Email">
+        </div>
+        <div class="form-row" style="padding:0">
+          <div class="form-label">Processing</div>
+          <select id="new-preset-processing">
+            <option value="direct">Direct</option>
+            <option value="polish">Polish</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="form-row" style="padding:0">
+          <div class="form-label">Language</div>
+          <select id="new-preset-language">
+            <option value="source">Original</option>
+            <option value="en">English</option>
+            <option value="zh">Chinese</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label" style="margin-bottom:4px">Custom Prompt</div>
+          <textarea id="new-preset-prompt" placeholder="Optional custom prompt..."></textarea>
+        </div>
+        <button class="btn btn-primary" id="add-preset-btn" style="align-self:flex-start">Add Preset</button>
+      </div>
+    </div>
+
+    <!-- ── About ── -->
+    <div class="tab-panel" id="tab-about">
+      <div class="section-title">About</div>
+      <div class="section-divider"></div>
+
+      <div style="display:flex; flex-direction:column; align-items:center; gap:12px; padding:20px 0; text-align:center;">
+        <div style="font-size:32px; font-weight:800; letter-spacing:-0.02em;">OpenTypeFewer</div>
+        <div style="color:var(--text-secondary); font-size:13px;" id="about-version">v0.1.0</div>
+        <div style="color:var(--text-secondary); font-size:13px; max-width:380px; line-height:1.6;">
+          Local, open-source voice-to-clipboard tool. Transcribe speech with faster-whisper, optionally polish with an LLM, paste directly to your cursor.
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-secondary" id="github-btn">GitHub</button>
+          <button class="btn btn-primary" id="check-updates-btn">Check for Updates</button>
+        </div>
+        <div id="update-status" style="font-size:12px; color:var(--text-secondary); min-height:18px;"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="js/settings.js"></script>
+</body>
+</html>

@@ -11,9 +11,11 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 - **Chinese, English, and mixed language** — Auto-detects spoken language or force a specific one.
 - **Two-dimensional output mode** — Independently control *processing style* (Direct / Polish / Custom) and *output language* (Original / Chinese / English / custom).
 - **Presets** — Save multiple output configurations (processing + language + custom prompt) with dedicated hotkeys. Switch instantly between presets like "Business Email", "Chinese Polish", etc.
-- **LLM polishing** — Optionally clean up transcriptions with a local LLM via [Ollama](https://ollama.com/) or a remote API (Anthropic / OpenAI).
+- **LLM polishing** — Optionally clean up transcriptions with a local LLM via [Ollama](https://ollama.com/) or a remote API (Anthropic / OpenAI / OpenAI-compatible). Supports extended thinking for supported models.
+- **Mini floating panel** — A compact always-on-top status panel showing recording state, current mode, and volume bars.
 - **System tray app** — Lives in your tray. Never steals focus.
-- **Settings GUI** — Configure everything from a tabbed settings window. Hotkey fields auto-detect key presses.
+- **Settings GUI** — Full-featured settings window with tabbed navigation. Configure LLM providers, hotkeys, presets, and appearance.
+- **Dark / Light / System theme** — Follows your OS theme or set it manually.
 - **Cross-platform** — macOS and Windows.
 
 ## Prerequisites
@@ -91,6 +93,25 @@ The only combination that skips the LLM entirely is **Direct + Original**. All o
 
 In **Custom** mode, the custom prompt acts as a *style modifier* combined with the output language. For example, setting language to English and custom prompt to "keep it casual" will translate to informal English — the language instruction and the style hint both apply.
 
+### Mini Panel
+
+Click **Show Panel** in the tray menu to open a compact floating status panel. It shows:
+- Current state (Ready / Recording / Processing) with animated indicators
+- Active preset name and mode
+- Live volume bars during recording
+- Gear button to open Settings
+
+### LLM Providers
+
+| Provider | Description |
+|----------|-------------|
+| **Ollama** | Local inference. Model dropdown auto-populated from running Ollama. |
+| **Anthropic** | Claude API. |
+| **OpenAI** | OpenAI API. |
+| **Compatible** | Any OpenAI-compatible endpoint (LM Studio, vLLM, Groq, etc.). |
+
+**Enable Thinking** toggle is available for each provider. Maps to extended reasoning where supported (Qwen3 thinking, Claude extended thinking, OpenAI `reasoning_effort=high`).
+
 ### Presets
 
 Save different output configurations and bind them to hotkeys. Each preset stores:
@@ -98,7 +119,7 @@ Save different output configurations and bind them to hotkeys. Each preset store
 - Output language
 - Custom prompt
 
-Press a preset hotkey to instantly switch modes. The tray icon tooltip briefly shows the active preset name as confirmation. Configure presets in Settings > Presets.
+Press a preset hotkey to instantly switch modes. Configure presets in Settings > Presets.
 
 > **Tip:** Preset hotkeys must not be a prefix of your record hotkey (or vice versa). For example, if your record hotkey is `Ctrl+Shift`, don't use `Ctrl+Shift+1` as a preset — use `Ctrl+Alt+1` instead.
 
@@ -171,22 +192,8 @@ src/voicepad/
     ├── notify/                # Notifications and sounds
     ├── i18n/                  # Internationalization (en/zh)
     ├── tray/                  # System tray (pystray)
-    └── settings_window/       # Settings GUI (customtkinter)
-```
-
-## Development
-
-### Run Tests
-
-```bash
-# All tests
-python -m pytest tests/ -v
-
-# Skip hardware-dependent tests
-python -m pytest tests/ -v -m "not hardware"
-
-# Single test by ID
-python -m pytest tests/*/U001/ -v
+    └── main_window/           # PyWebView UI — mini panel + settings window
+        └── frontend/          # HTML / CSS / JS
 ```
 
 ## License
