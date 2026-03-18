@@ -27,13 +27,15 @@ logger = logging.getLogger("voicepad.app")
 
 
 def _setup_logging(verbose_mode: bool = False) -> None:
-    import platform
-    if getattr(sys, "frozen", False) and platform.system() == "Darwin":
-        # In the macOS bundle, __file__ points inside the temp extraction dir.
-        # Write logs to ~/Library/Logs/OpenTypeFewer/ so they persist.
-        log_dir = os.path.join(
-            os.path.expanduser("~"), "Library", "Logs", "OpenTypeFewer"
-        )
+    if getattr(sys, "frozen", False):
+        if IS_MACOS:
+            log_dir = os.path.join(
+                os.path.expanduser("~"), "Library", "Logs", "OpenTypeFewer"
+            )
+        else:
+            log_dir = os.path.join(
+                os.path.expanduser("~"), ".opentypefewer", "logs"
+            )
     else:
         log_dir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "..", "logs"
@@ -54,6 +56,9 @@ def _setup_logging(verbose_mode: bool = False) -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
     root_logger.addHandler(file_handler)
+
+    for noisy_logger in ("httpcore", "httpx", "urllib3", "huggingface_hub", "PIL"):
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
     if verbose_mode:
         console_handler = logging.StreamHandler()
@@ -94,6 +99,7 @@ class VoicePadApp:
         self._pipeline_lock = threading.Lock()
 
         self.panel_process = None
+        self.settings_process = None
         self._status_file_path = self._resolve_status_file_path()
 
     def run(self) -> None:
@@ -115,6 +121,7 @@ class VoicePadApp:
             warmup_thread.start()
 
             self.hotkey_manager.start_listening()
+            self.show_panel()
 
             logger.info("OpenTypeFewer running (Windows mode)")
             # Keep main thread alive for Windows — block on tray
@@ -125,6 +132,7 @@ class VoicePadApp:
     def _warmup_models(self) -> None:
         logger.info("Pre-loading models at startup")
         self.asr_engine.load_model()
+        self.asr_engine._warmup_inference()
 
         active_backend = self.config_manager.get_value("llm.backend", "ollama")
         if active_backend == "ollama":
@@ -246,6 +254,7 @@ class VoicePadApp:
 
     def show_panel(self) -> None:
         if self.panel_process and self.panel_process.poll() is None:
+            self._signal_panel_restore()
             return
         import subprocess
         config_path = str(self.config_manager.config_path)
@@ -257,8 +266,26 @@ class VoicePadApp:
         self.panel_process = subprocess.Popen(cmd)
         threading.Thread(target=self._watch_panel_for_settings_signal, daemon=True).start()
 
+    def _signal_panel_restore(self) -> None:
+        restore_path = self._resolve_restore_signal_path()
+        restore_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            restore_path.write_text("restore")
+        except OSError:
+            pass
+
+    def _resolve_restore_signal_path(self) -> Path:
+        if getattr(sys, "frozen", False):
+            return Path(os.path.expanduser("~")) / ".opentypefewer" / "restore_panel.signal"
+        return Path(__file__).parent.parent.parent / "temp" / "restore_panel.signal"
+
+    def _resolve_signal_file_path(self) -> Path:
+        if getattr(sys, "frozen", False):
+            return Path(os.path.expanduser("~")) / ".opentypefewer" / "open_settings.signal"
+        return Path(__file__).parent.parent.parent / "temp" / "open_settings.signal"
+
     def _watch_panel_for_settings_signal(self) -> None:
-        signal_file_path = Path("temp") / "open_settings.signal"
+        signal_file_path = self._resolve_signal_file_path()
         while self.panel_process and self.panel_process.poll() is None:
             if signal_file_path.exists():
                 try:
@@ -270,16 +297,19 @@ class VoicePadApp:
             time.sleep(0.2)
 
     def open_settings(self) -> None:
+        if self.settings_process and self.settings_process.poll() is None:
+            return
+
         import subprocess
         config_path = str(self.config_manager.config_path)
         if getattr(sys, "frozen", False):
             cmd = [sys.executable, "--settings-only", config_path]
         else:
             cmd = [sys.executable, "-m", "voicepad.settings_subprocess", config_path]
-        proc = subprocess.Popen(cmd)
+        self.settings_process = subprocess.Popen(cmd)
 
         def _watch_settings_proc():
-            proc.wait()
+            self.settings_process.wait()
             self.reload_config()
 
         threading.Thread(target=_watch_settings_proc, daemon=True).start()
@@ -321,12 +351,19 @@ class VoicePadApp:
         return "Custom"
 
     def _format_hotkey_for_display(self, hotkey_raw: str) -> str:
-        display_map = {
-            "ctrl": "⌃", "shift": "⇧", "alt": "⌥", "cmd": "⌘",
+        parts = hotkey_raw.split("+")
+        if IS_MACOS:
+            mac_display_map = {
+                "ctrl": "⌃", "shift": "⇧", "alt": "⌥", "cmd": "⌘",
+                "space": "Space", "tab": "Tab", "enter": "Enter",
+            }
+            return "".join(mac_display_map.get(p.lower(), p.upper()) for p in parts)
+        win_display_map = {
+            "ctrl": "Ctrl", "shift": "Shift", "alt": "Alt",
+            "cmd": "Win", "win": "Win", "windows": "Win",
             "space": "Space", "tab": "Tab", "enter": "Enter",
         }
-        parts = hotkey_raw.split("+")
-        return "".join(display_map.get(part.lower(), part.upper()) for part in parts)
+        return "+".join(win_display_map.get(p.lower(), p.capitalize()) for p in parts)
 
     def _resolve_status_file_path(self) -> str:
         if getattr(sys, "frozen", False):
@@ -351,8 +388,6 @@ class VoicePadApp:
         logger.info("OpenTypeFewer shutting down")
         self.hotkey_manager.stop_listening()
         self.tray_app.quit_tray()
-        if self.tk_root:
-            self.tk_root.after(0, self.tk_root.destroy)
 
     def _process_audio_pipeline(
         self,
@@ -389,15 +424,12 @@ class VoicePadApp:
             if clipboard_success:
                 import time
                 time.sleep(0.05)
-                if IS_MACOS:
-                    from pynput.keyboard import Controller as KbController, Key
-                    _kb = KbController()
-                    with _kb.pressed(Key.cmd):
-                        _kb.press('v')
-                        _kb.release('v')
-                else:
-                    import keyboard
-                    keyboard.send("ctrl+v")
+                from pynput.keyboard import Controller as KbController, Key
+                _kb = KbController()
+                modifier_key = Key.cmd if IS_MACOS else Key.ctrl
+                with _kb.pressed(modifier_key):
+                    _kb.press('v')
+                    _kb.release('v')
                 logger.info("Auto-pasted to cursor position")
 
                 preview_text = final_text[:50]

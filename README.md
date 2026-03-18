@@ -12,9 +12,9 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 - **Two-dimensional output mode** — Independently control *processing style* (Direct / Polish / Custom) and *output language* (Original / Chinese / English / custom).
 - **Presets** — Save multiple output configurations (processing + language + custom prompt) with dedicated hotkeys. Switch instantly between presets like "Business Email", "Chinese Polish", etc.
 - **LLM polishing** — Optionally clean up transcriptions with a local LLM via [Ollama](https://ollama.com/) or a remote API (Anthropic / OpenAI / OpenAI-compatible). Supports extended thinking for supported models.
-- **Mini floating panel** — A compact always-on-top status panel showing recording state, current mode, and volume bars.
-- **System tray app** — Lives in your tray. Never steals focus.
-- **Settings GUI** — Full-featured settings window with tabbed navigation. Configure LLM providers, hotkeys, presets, and appearance.
+- **Mini floating panel** — A compact always-on-top status panel showing recording state, current mode, and volume bars. Hide to tray and restore with a double-click on the tray icon.
+- **System tray app** — Lives in your tray. Double-click to show panel (Windows).
+- **Settings GUI** — Full-featured settings window. Configure ASR model/device, microphone, LLM providers, hotkeys, presets, and appearance.
 - **Dark / Light / System theme** — Follows your OS theme or set it manually.
 - **Cross-platform** — macOS and Windows.
 
@@ -23,8 +23,8 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 - **Python 3.10+** (for running from source)
 - **Ollama** (optional, for local LLM polishing) — [Install Ollama](https://ollama.com/download)
   - Pull a model: `ollama pull qwen3:1.7b` (fast) or `ollama pull qwen3:8b` (accurate)
-- **Microphone** — System default mic is used
-- **NVIDIA GPU** (optional, Windows/Linux) — Install `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12` for GPU-accelerated speech recognition
+- **Microphone** — Configurable in Settings (default: system default mic)
+- **NVIDIA GPU** (optional, Windows) — Install `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12` for GPU-accelerated speech recognition. Auto-detected at startup.
 
 ## Quick Start
 
@@ -89,17 +89,17 @@ macOS requires two permissions on first launch:
 | **Chinese** | Translate/output in Chinese |
 | **English** | Translate/output in English |
 
-The only combination that skips the LLM entirely is **Direct + Original**. All other combinations call the LLM.
+**Direct** mode always skips the LLM entirely, regardless of output language. **Polish** and **Custom** modes call the LLM.
 
 In **Custom** mode, the custom prompt acts as a *style modifier* combined with the output language. For example, setting language to English and custom prompt to "keep it casual" will translate to informal English — the language instruction and the style hint both apply.
 
 ### Mini Panel
 
-Click **Show Panel** in the tray menu to open a compact floating status panel. It shows:
-- Current state (Ready / Recording / Processing) with animated indicators
-- Active preset name and mode
+The mini panel opens automatically on startup (Windows) or via **Show Panel** in the tray menu. Double-click the tray icon to restore it (Windows). It shows:
+- Settings and minimize-to-tray buttons at the top
+- Current state (Ready / Recording / Processing) with animated orb
+- Active preset name, mode, and hotkey
 - Live volume bars during recording
-- Gear button to open Settings
 
 ### LLM Providers
 

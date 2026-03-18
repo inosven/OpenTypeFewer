@@ -7,9 +7,9 @@
   <link rel="stylesheet" href="css/theme.css">
   <style>
     html, body {
-      width: 680px;
-      height: 500px;
-      overflow: hidden;
+      width: 100%;
+      min-height: 500px;
+      height: 100vh;
     }
 
     body {
@@ -321,6 +321,84 @@
       color: white;
     }
 
+    .preset-item-edit {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, color 0.12s;
+      font-size: 12px;
+    }
+
+    .preset-item-edit:hover {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .preset-edit-form {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--surface);
+    }
+
+    .preset-edit-form .form-row {
+      padding: 4px 0;
+    }
+
+    .preset-edit-form input[type="text"],
+    .preset-edit-form select,
+    .preset-edit-form textarea {
+      width: 180px;
+    }
+
+    .preset-edit-form textarea {
+      width: 100%;
+      min-height: 40px;
+    }
+
+    .preset-hotkey-btn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: "SF Mono", "Menlo", "Consolas", monospace;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+      min-width: 50px;
+      transition: border-color 0.15s;
+    }
+
+    .preset-hotkey-btn.capturing {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .save-status {
+      font-size: 12px;
+      color: var(--accent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .save-status.visible {
+      opacity: 1;
+    }
+
+    .save-status.error {
+      color: var(--danger, #ff4444);
+    }
+
     /* ── Buttons ───────────────────────────────── */
     .btn {
       display: inline-flex;
@@ -352,38 +430,22 @@
       background: var(--surface-hover);
     }
 
-    /* ── Mic test bar ──────────────────────────── */
-    .mic-test-bar-container {
-      height: 6px;
+    /* ── Mic volume bar ─────────────────────────── */
+    .mic-volume-bar-track {
+      height: 8px;
       background: var(--surface);
-      border-radius: 3px;
+      border-radius: 4px;
       overflow: hidden;
       width: 100%;
       border: 1px solid var(--border);
     }
 
-    .mic-test-bar-fill {
+    .mic-volume-bar-fill {
       height: 100%;
       background: var(--accent);
-      border-radius: 3px;
+      border-radius: 4px;
       transition: width 0.08s ease-out;
       width: 0%;
-    }
-
-    /* ── Volume bar visualizer ─────────────────── */
-    .mic-volume-bars {
-      display: flex;
-      align-items: flex-end;
-      gap: 3px;
-      height: 32px;
-    }
-
-    .mic-volume-bar {
-      width: 4px;
-      border-radius: 2px;
-      background: var(--accent);
-      min-height: 4px;
-      transition: height 0.08s ease-out;
     }
   </style>
 </head>
@@ -478,27 +540,83 @@
 
       <div class="form-row">
         <div class="form-label-group">
+          <div class="form-label">Microphone</div>
+          <div class="form-label-secondary">Select input device for recording</div>
+        </div>
+        <select id="setting-mic-device" style="width:220px">
+          <option value="">System Default</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
           <div class="form-label">Microphone Test</div>
           <div class="form-label-secondary">Speak to see live volume level</div>
         </div>
         <button class="btn btn-secondary" id="mic-test-btn">Test Mic</button>
       </div>
 
-      <div class="mic-volume-bars" id="mic-volume-bars" style="display:none">
-        <div class="mic-volume-bar" id="mbar0"></div>
-        <div class="mic-volume-bar" id="mbar1"></div>
-        <div class="mic-volume-bar" id="mbar2"></div>
-        <div class="mic-volume-bar" id="mbar3"></div>
-        <div class="mic-volume-bar" id="mbar4"></div>
-        <div class="mic-volume-bar" id="mbar5"></div>
-        <div class="mic-volume-bar" id="mbar6"></div>
-        <div class="mic-volume-bar" id="mbar7"></div>
+      <div id="mic-volume-container" style="display:none; padding: 4px 0;">
+        <div class="mic-volume-bar-track">
+          <div class="mic-volume-bar-fill" id="mic-volume-fill"></div>
+        </div>
       </div>
     </div>
 
     <!-- ── Model Provider ── -->
     <div class="tab-panel" id="tab-model">
-      <div class="section-title">Model Provider</div>
+      <div class="section-title">Speech Recognition</div>
+      <div class="section-divider"></div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Whisper Model</div>
+          <div class="form-label-secondary">Larger = more accurate but slower</div>
+        </div>
+        <select id="asr-model-size">
+          <option value="tiny">Tiny (~75 MB)</option>
+          <option value="base">Base (~150 MB)</option>
+          <option value="small">Small (~500 MB)</option>
+          <option value="medium">Medium (~1.5 GB)</option>
+          <option value="large-v3">Large v3 (~3 GB)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Device</div>
+          <div class="form-label-secondary">auto = use GPU if available</div>
+        </div>
+        <select id="asr-device">
+          <option value="auto">Auto</option>
+          <option value="cpu">CPU</option>
+          <option value="cuda">CUDA (GPU)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label-group">
+          <div class="form-label">Language</div>
+          <div class="form-label-secondary">Force language or auto-detect</div>
+        </div>
+        <select id="asr-language">
+          <option value="">Auto-detect</option>
+          <option value="zh">Chinese</option>
+          <option value="en">English</option>
+          <option value="ja">Japanese</option>
+          <option value="ko">Korean</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="es">Spanish</option>
+        </select>
+      </div>
+
+      <div style="margin-top:8px; margin-bottom:20px; display:flex; gap:8px; align-items:center;">
+        <button class="btn btn-primary" id="save-asr-btn">Save</button>
+        <span class="save-status" id="save-asr-status"></span>
+      </div>
+
+      <div class="section-title">LLM Provider</div>
       <div class="section-divider"></div>
 
       <div class="sub-tab-bar">
@@ -621,8 +739,9 @@
         </div>
       </div>
 
-      <div style="margin-top:16px; display:flex; gap:8px;">
+      <div style="margin-top:16px; display:flex; gap:8px; align-items:center;">
         <button class="btn btn-primary" id="save-model-btn">Save</button>
+        <span class="save-status" id="save-model-status"></span>
       </div>
     </div>
 
@@ -642,13 +761,14 @@
       <div class="form-row">
         <div class="form-label-group">
           <div class="form-label">Mode Switch Hotkey</div>
-          <div class="form-label-secondary">Cycles Direct → Polish → Custom</div>
+          <div class="form-label-secondary">Cycles Direct → Polish → Custom (optional)</div>
         </div>
-        <div class="hotkey-capture" id="hotkey-mode-switch" tabindex="0">⌃⇧M</div>
+        <div class="hotkey-capture" id="hotkey-mode-switch" tabindex="0">None</div>
       </div>
 
-      <div style="margin-top:16px; display:flex; gap:8px;">
+      <div style="margin-top:16px; display:flex; gap:8px; align-items:center;">
         <button class="btn btn-primary" id="save-hotkeys-btn">Save</button>
+        <span class="save-status" id="save-hotkeys-status"></span>
       </div>
     </div>
 
@@ -664,6 +784,10 @@
         <div class="form-row" style="padding:0">
           <div class="form-label">Name</div>
           <input type="text" id="new-preset-name" placeholder="Business Email">
+        </div>
+        <div class="form-row" style="padding:0">
+          <div class="form-label">Hotkey</div>
+          <div class="hotkey-capture" id="new-preset-hotkey" tabindex="0" style="width:140px">Click to set</div>
         </div>
         <div class="form-row" style="padding:0">
           <div class="form-label">Processing</div>

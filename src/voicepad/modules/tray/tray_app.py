@@ -227,6 +227,7 @@ class TrayApp:
             pystray.MenuItem(
                 "Show Panel",
                 lambda icon, item: self.voicepad_app.show_panel(),
+                default=True,
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(

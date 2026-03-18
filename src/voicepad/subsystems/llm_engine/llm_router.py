@@ -77,27 +77,25 @@ class LLMRouter:
         output_language: str,
         custom_prompt: str = None,
     ) -> str:
-        # direct + source: skip LLM entirely
-        if processing_style == "direct" and output_language == "source":
+        if processing_style == "direct":
             return None
 
-        # Build base instruction
         if processing_style == "polish":
             base = (
-                "Clean up the following speech-to-text transcription into fluent "
-                "written form. Fix spoken-language patterns, repetitions, filler "
-                "words, and grammatical errors. Keep the original meaning. "
-                "Do not add content."
+                "You are a text processor. Your ONLY job is to clean up speech-to-text output.\n"
+                "Rules:\n"
+                "- Fix grammar, filler words, repetitions, and spoken-language patterns\n"
+                "- Keep the original meaning exactly\n"
+                "- Do NOT add any commentary, explanation, or extra content\n"
+                "- Output ONLY the cleaned text, nothing else"
             )
         elif processing_style == "custom":
             if not custom_prompt:
                 return None
             base = custom_prompt
         else:
-            # direct + non-source language: translate only, no clean-up
-            base = None
+            return None
 
-        # Build language instruction
         if output_language == "source":
             lang = "Keep the output in the same language as the input."
         elif output_language == "zh":
@@ -107,8 +105,7 @@ class LLMRouter:
         else:
             lang = f"Output the result in {output_language}."
 
-        parts = [p for p in [base, lang, input_text] if p]
-        return "\n\n".join(parts)
+        return f"{base}\n\n{lang}\n\nInput:\n\"{input_text}\"\n\nOutput:"
 
     def _strip_thinking_tags(self, response_text: str) -> str:
         return re.sub(

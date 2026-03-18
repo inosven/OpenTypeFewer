@@ -12,27 +12,33 @@ logger = logging.getLogger("voicepad.asr")
 MODEL_CACHE_DIR = str(Path.home() / ".voicepad" / "models")
 
 
-def _register_nvidia_dll_paths() -> None:
+_preloaded_dlls = []
+
+
+def _preload_nvidia_dlls() -> None:
     if sys.platform != "win32":
         return
 
+    import ctypes
     import site
+
     search_roots = site.getsitepackages() + [site.getusersitepackages()]
-    current_path = os.environ.get("PATH", "")
+    target_prefixes = ("cublas", "cublaslt", "cudnn")
 
     for site_root in search_roots:
         nvidia_dir = Path(site_root) / "nvidia"
         if not nvidia_dir.exists():
             continue
-        for dll_dir in nvidia_dir.rglob("bin"):
-            if dll_dir.is_dir():
-                dll_path = str(dll_dir)
-                if dll_path not in current_path:
-                    os.environ["PATH"] = dll_path + os.pathsep + os.environ.get("PATH", "")
-                    logger.info(f"Added NVIDIA DLL to PATH: {dll_path}")
+        for dll_file in nvidia_dir.rglob("*.dll"):
+            if any(dll_file.name.lower().startswith(p) for p in target_prefixes):
+                try:
+                    handle = ctypes.WinDLL(str(dll_file))
+                    _preloaded_dlls.append(handle)
+                except OSError:
+                    pass
 
 
-_register_nvidia_dll_paths()
+_preload_nvidia_dlls()
 
 
 @dataclass
@@ -58,10 +64,19 @@ class ASREngine:
             resolved_device = self._resolve_device()
             resolved_compute = self._resolve_compute_type(resolved_device)
 
-            logger.info(
-                f"Loading ASR model: {self.model_size} "
-                f"on {resolved_device} with {resolved_compute}"
-            )
+            model_dir = os.path.join(MODEL_CACHE_DIR, f"models--Systran--faster-whisper-{self.model_size}")
+            model_cached = os.path.exists(model_dir)
+
+            if model_cached:
+                logger.info(
+                    f"Loading ASR model: {self.model_size} "
+                    f"on {resolved_device} with {resolved_compute}"
+                )
+            else:
+                logger.info(
+                    f"Downloading ASR model: {self.model_size} "
+                    f"(first time, this may take a while)"
+                )
 
             os.makedirs(MODEL_CACHE_DIR, exist_ok=True)
 
@@ -101,6 +116,9 @@ class ASREngine:
                 )
 
         try:
+            import threading
+            import time
+
             transcribe_kwargs = {
                 "beam_size": 5,
                 "vad_filter": True,
@@ -109,13 +127,19 @@ class ASREngine:
             if self.forced_language:
                 transcribe_kwargs["language"] = self.forced_language
 
+            logger.info(f"Starting transcription on {self._resolve_device()}...")
+
             segments, detection_info = self.whisper_model.transcribe(
                 audio_path, **transcribe_kwargs
             )
 
             segment_texts = []
+            transcribe_start = time.monotonic()
             for segment in segments:
                 segment_texts.append(segment.text.strip())
+                if time.monotonic() - transcribe_start > 30:
+                    logger.error("Transcription timed out after 30s")
+                    break
 
             full_text = " ".join(segment_texts).strip()
             detected_lang = detection_info.language if detection_info else ""
@@ -140,6 +164,11 @@ class ASREngine:
             )
         except Exception as transcribe_error:
             logger.error(f"Transcription failed: {transcribe_error}")
+            if self.device_type == "auto" and self._resolve_device() != "cpu":
+                logger.info("CUDA inference failed, falling back to CPU")
+                self.whisper_model = None
+                self.device_type = "cpu"
+                return self.transcribe_audio(audio_path)
             return ASRResult(transcribed_text="", detected_language="", confidence_score=0.0)
 
     def _transcribe_via_subprocess(self, audio_path: str) -> ASRResult:
@@ -224,6 +253,7 @@ class ASREngine:
             logger.info(f"ASR config changed, reloading model: {self.model_size}")
             self.whisper_model = None
             self.load_model()
+            self._warmup_inference()
 
     def _resolve_device(self) -> str:
         if self.device_type != "auto":
@@ -249,3 +279,20 @@ class ASREngine:
         if getattr(sys, "frozen", False) and platform.system() == "Darwin":
             return "float32"
         return "int8"
+
+    def _warmup_inference(self) -> None:
+        if not self.whisper_model:
+            return
+        try:
+            import numpy
+            import time
+            logger.info("Warming up ASR model with dummy inference...")
+            warmup_start = time.monotonic()
+            dummy_audio = numpy.zeros(16000, dtype=numpy.float32)
+            segments, _ = self.whisper_model.transcribe(dummy_audio, beam_size=1)
+            for _ in segments:
+                pass
+            warmup_elapsed = time.monotonic() - warmup_start
+            logger.info(f"ASR warmup complete in {warmup_elapsed:.1f}s")
+        except Exception as warmup_error:
+            logger.warning(f"ASR warmup failed: {warmup_error}")

@@ -33,9 +33,9 @@ def main() -> None:
         title="OpenTypeFewer — Settings",
         url=settings_html_path,
         js_api=window_api,
-        width=680,
-        height=500,
-        resizable=False,
+        width=780,
+        height=720,
+        resizable=True,
         background_color="#1c1c1e",
     )
 
@@ -44,7 +44,7 @@ def main() -> None:
 
 def _resolve_frontend_path(filename: str) -> str:
     frontend_dir = Path(__file__).parent / "modules" / "main_window" / "frontend"
-    return frontend_dir / filename
+    return str(frontend_dir / filename)
 
 
 if __name__ == "__main__":

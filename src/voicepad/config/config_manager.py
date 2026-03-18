@@ -11,10 +11,10 @@ DEFAULT_CONFIG = {
     "language": "en",
     "trigger_mode": "hold",
     "hotkey": "ctrl+shift+space",
-    "mode_switch_hotkey": "ctrl+shift+m",
+    "mode_switch_hotkey": "",
     "auto_stop_on_focus_loss": True,
     "asr": {
-        "model_size": "large-v3",
+        "model_size": "base",
         "language": None,
         "device": "auto",
         "compute_type": "auto",

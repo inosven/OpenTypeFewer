@@ -98,6 +98,12 @@ document.getElementById("settings-btn").addEventListener("click", () => {
   }
 });
 
+document.getElementById("minimize-btn").addEventListener("click", () => {
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.minimize_window();
+  }
+});
+
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
   const root_el = document.documentElement;
   if (root_el.getAttribute("data-theme") === "dark" || root_el.getAttribute("data-theme") === "light") {

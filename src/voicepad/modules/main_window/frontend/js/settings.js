@@ -3,6 +3,9 @@ let mic_test_active = false;
 let mic_poll_timer = null;
 let hotkey_capturing = null;
 let captured_keys = new Set();
+let editing_preset_index = -1;
+
+const IS_MACOS = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +51,7 @@ async function load_config() {
   try {
     app_config = await window.pywebview.api.get_config();
     populate_form(app_config);
+    load_microphone_list();
   } catch (load_error) {
     console.error("Failed to load config:", load_error);
   }
@@ -98,11 +102,24 @@ function populate_form(config_data) {
   set_input("compatible-temperature", compatible_cfg.temperature || 0.3);
   set_checkbox("compatible-thinking", thinking_enabled);
 
+  const asr_cfg = config_data.asr || {};
+  set_select("asr-model-size", asr_cfg.model_size || "large-v3");
+  set_select("asr-device", asr_cfg.device || "auto");
+  set_select("asr-language", asr_cfg.language ?? "");
+
   const hotkey_record = document.getElementById("hotkey-record");
-  if (hotkey_record) hotkey_record.textContent = format_hotkey_display(config_data.hotkey || "ctrl+shift+space");
+  if (hotkey_record) {
+    const record_hk = config_data.hotkey || "ctrl+shift+space";
+    hotkey_record.textContent = format_hotkey_display(record_hk);
+    hotkey_record.dataset.storageValue = record_hk;
+  }
 
   const hotkey_mode = document.getElementById("hotkey-mode-switch");
-  if (hotkey_mode) hotkey_mode.textContent = format_hotkey_display(config_data.mode_switch_hotkey || "ctrl+shift+m");
+  if (hotkey_mode) {
+    const mode_hk = config_data.mode_switch_hotkey || "";
+    hotkey_mode.textContent = mode_hk ? format_hotkey_display(mode_hk) : "None";
+    hotkey_mode.dataset.storageValue = mode_hk;
+  }
 
   render_preset_list(config_data.presets || []);
 }
@@ -115,6 +132,21 @@ function set_input(element_id, value) {
 function set_checkbox(element_id, checked) {
   const el = document.getElementById(element_id);
   if (el) el.checked = checked;
+}
+
+function set_select(element_id, value) {
+  const el = document.getElementById(element_id);
+  if (el) el.value = value;
+}
+
+function show_save_status(status_id, success) {
+  const status_el = document.getElementById(status_id);
+  if (!status_el) return;
+  status_el.textContent = success ? "Saved!" : "Save failed";
+  status_el.classList.remove("error");
+  if (!success) status_el.classList.add("error");
+  status_el.classList.add("visible");
+  setTimeout(() => status_el.classList.remove("visible"), 2000);
 }
 
 // ── Ollama model list ────────────────────────────────────────────────────────
@@ -153,66 +185,102 @@ document.getElementById("setting-theme")?.addEventListener("change", (event) => 
   apply_theme(event.target.value);
 });
 
+// ── Microphone device list ───────────────────────────────────────────────────
+
+async function load_microphone_list() {
+  const mic_select = document.getElementById("setting-mic-device");
+  if (!mic_select) return;
+
+  try {
+    const device_list = await window.pywebview.api.list_microphones();
+    const current_device = (app_config.audio || {}).input_device || "";
+
+    mic_select.innerHTML = '<option value="">System Default</option>';
+    device_list.forEach(device_entry => {
+      const option_el = document.createElement("option");
+      option_el.value = String(device_entry.index);
+      option_el.textContent = device_entry.name;
+      if (String(device_entry.index) === String(current_device)) option_el.selected = true;
+      mic_select.appendChild(option_el);
+    });
+  } catch (list_error) {
+    console.warn("Failed to list microphones:", list_error);
+  }
+}
+
+document.getElementById("setting-mic-device")?.addEventListener("change", async (event) => {
+  const updated_config = JSON.parse(JSON.stringify(app_config));
+  if (!updated_config.audio) updated_config.audio = {};
+  const device_val = event.target.value;
+  updated_config.audio.input_device = device_val ? parseInt(device_val) : null;
+  await save_config(updated_config);
+});
+
 // ── Microphone test ──────────────────────────────────────────────────────────
 
 document.getElementById("mic-test-btn")?.addEventListener("click", async () => {
-  const bars_container = document.getElementById("mic-volume-bars");
+  const volume_container = document.getElementById("mic-volume-container");
   const btn = document.getElementById("mic-test-btn");
 
   if (mic_test_active) {
     mic_test_active = false;
     clearInterval(mic_poll_timer);
-    bars_container.style.display = "none";
+    await window.pywebview.api.stop_mic_test();
+    volume_container.style.display = "none";
     btn.textContent = "Test Mic";
     return;
   }
 
+  const mic_device = document.getElementById("setting-mic-device")?.value || "";
+  const device_index = mic_device ? parseInt(mic_device) : null;
+  const started = await window.pywebview.api.start_mic_test(device_index);
+  if (!started) return;
+
   mic_test_active = true;
-  bars_container.style.display = "flex";
+  volume_container.style.display = "block";
   btn.textContent = "Stop Test";
 
   mic_poll_timer = setInterval(async () => {
     if (!mic_test_active) return;
     try {
-      const volume_level = await window.pywebview.api.test_microphone();
-      update_mic_bars(volume_level);
+      const volume_level = await window.pywebview.api.get_mic_test_level();
+      const fill_el = document.getElementById("mic-volume-fill");
+      if (fill_el) fill_el.style.width = (volume_level * 100) + "%";
     } catch {
       // ignore errors during test
     }
-  }, 100);
+  }, 80);
 });
 
-function update_mic_bars(volume_level) {
-  for (let bar_index = 0; bar_index < 8; bar_index++) {
-    const bar_el = document.getElementById("mbar" + bar_index);
-    if (!bar_el) continue;
-    const base_height = 4 + bar_index * 3;
-    const random_factor = 0.5 + Math.random() * 1.0;
-    const computed_height = base_height + volume_level * 24 * random_factor;
-    bar_el.style.height = Math.min(computed_height, 32) + "px";
-  }
-}
-
-// ── Hotkey capture ───────────────────────────────────────────────────────────
+// ── Hotkey display helpers ───────────────────────────────────────────────────
 
 const MODIFIER_KEYS = new Set(["Control", "Shift", "Alt", "Meta", "Fn"]);
 
-const KEY_DISPLAY_MAP = {
-  "Control": "⌃", "Shift": "⇧", "Alt": "⌥", "Meta": "⌘",
-  " ": "Space", "ArrowUp": "↑", "ArrowDown": "↓",
-  "ArrowLeft": "←", "ArrowRight": "→",
+const KEY_STORAGE_MAP = {
+  " ": "space", "Tab": "tab", "Enter": "enter",
+  "Escape": "esc", "Backspace": "backspace", "Delete": "delete",
+  "ArrowUp": "up", "ArrowDown": "down",
+  "ArrowLeft": "left", "ArrowRight": "right",
 };
 
 function format_hotkey_display(hotkey_str) {
-  if (!hotkey_str) return "";
-  return hotkey_str.split("+").map(key_part => {
-    const trimmed = key_part.trim();
-    const key_map = {
+  if (!hotkey_str) return "None";
+  const parts = hotkey_str.split("+").map(p => p.trim());
+
+  if (IS_MACOS) {
+    const mac_map = {
       "ctrl": "⌃", "shift": "⇧", "alt": "⌥", "cmd": "⌘",
       "space": "Space", "tab": "Tab", "enter": "Enter",
     };
-    return key_map[trimmed.toLowerCase()] || trimmed.toUpperCase();
-  }).join("");
+    return parts.map(p => mac_map[p.toLowerCase()] || p.toUpperCase()).join("");
+  }
+
+  const win_map = {
+    "ctrl": "Ctrl", "shift": "Shift", "alt": "Alt",
+    "cmd": "Win", "win": "Win", "windows": "Win",
+    "space": "Space", "tab": "Tab", "enter": "Enter",
+  };
+  return parts.map(p => win_map[p.toLowerCase()] || p.charAt(0).toUpperCase() + p.slice(1)).join("+");
 }
 
 function hotkey_to_storage_string(key_set) {
@@ -223,36 +291,70 @@ function hotkey_to_storage_string(key_set) {
   if (key_set.has("Meta")) parts.push("cmd");
   for (const key_name of key_set) {
     if (!MODIFIER_KEYS.has(key_name)) {
-      parts.push(key_name.toLowerCase());
+      const storage_name = KEY_STORAGE_MAP[key_name] || key_name.toLowerCase();
+      parts.push(storage_name);
     }
   }
   return parts.join("+");
 }
 
+// ── Hotkey capture (Python-side for Windows, JS-side for macOS) ──────────────
+
+async function start_hotkey_capture(capture_el) {
+  document.querySelectorAll(".hotkey-capture, .preset-hotkey-btn").forEach(el => el.classList.remove("capturing"));
+  capture_el.classList.add("capturing");
+  capture_el.textContent = "Press keys...";
+
+  if (!IS_MACOS && window.pywebview && window.pywebview.api) {
+    try {
+      const captured_str = await window.pywebview.api.capture_hotkey();
+      if (captured_str) {
+        capture_el.textContent = format_hotkey_display(captured_str);
+        capture_el.classList.remove("capturing");
+        capture_el.dataset.storageValue = captured_str;
+        on_hotkey_captured(capture_el, captured_str);
+        return;
+      }
+    } catch (capture_error) {
+      console.warn("Python capture failed, falling back to JS:", capture_error);
+    }
+  }
+
+  hotkey_capturing = capture_el.id;
+  captured_keys = new Set();
+  capture_el.focus();
+}
+
+function on_hotkey_captured(capture_el, storage_str) {
+  if (capture_el.id.startsWith("preset-hotkey-")) {
+    const preset_index = parseInt(capture_el.id.replace("preset-hotkey-", ""));
+    const updated_config = JSON.parse(JSON.stringify(app_config));
+    if (updated_config.presets && updated_config.presets[preset_index]) {
+      updated_config.presets[preset_index].hotkey = storage_str;
+      save_config(updated_config);
+    }
+  }
+}
+
 document.querySelectorAll(".hotkey-capture").forEach(capture_el => {
-  capture_el.addEventListener("click", () => {
-    document.querySelectorAll(".hotkey-capture").forEach(el => el.classList.remove("capturing"));
-    capture_el.classList.add("capturing");
-    capture_el.textContent = "Press keys...";
-    hotkey_capturing = capture_el.id;
-    captured_keys = new Set();
-  });
+  capture_el.addEventListener("click", () => start_hotkey_capture(capture_el));
 });
 
 document.addEventListener("keydown", (key_event) => {
   if (!hotkey_capturing) return;
   key_event.preventDefault();
+  key_event.stopPropagation();
   captured_keys.add(key_event.key);
 });
 
 document.addEventListener("keyup", (key_event) => {
   if (!hotkey_capturing) return;
   key_event.preventDefault();
+  key_event.stopPropagation();
 
-  const released_key = key_event.key;
   const non_modifiers = [...captured_keys].filter(k => !MODIFIER_KEYS.has(k));
 
-  if (!MODIFIER_KEYS.has(released_key) || non_modifiers.length > 0) {
+  if (!MODIFIER_KEYS.has(key_event.key) || non_modifiers.length > 0) {
     const storage_str = hotkey_to_storage_string(captured_keys);
     const display_str = format_hotkey_display(storage_str);
     const capture_el = document.getElementById(hotkey_capturing);
@@ -261,10 +363,37 @@ document.addEventListener("keyup", (key_event) => {
       capture_el.textContent = display_str || "None";
       capture_el.classList.remove("capturing");
       capture_el.dataset.storageValue = storage_str;
+      on_hotkey_captured(capture_el, storage_str);
     }
     hotkey_capturing = null;
     captured_keys = new Set();
   }
+});
+
+document.addEventListener("click", (click_event) => {
+  if (!hotkey_capturing) return;
+  const capture_el = document.getElementById(hotkey_capturing);
+  if (capture_el && !capture_el.contains(click_event.target)) {
+    capture_el.classList.remove("capturing");
+    const existing_val = capture_el.dataset.storageValue;
+    capture_el.textContent = existing_val ? format_hotkey_display(existing_val) : "None";
+    hotkey_capturing = null;
+    captured_keys = new Set();
+  }
+});
+
+// ── Save ASR settings ────────────────────────────────────────────────────────
+
+document.getElementById("save-asr-btn")?.addEventListener("click", async () => {
+  const updated_config = JSON.parse(JSON.stringify(app_config));
+  if (!updated_config.asr) updated_config.asr = {};
+  updated_config.asr.model_size = document.getElementById("asr-model-size").value;
+  updated_config.asr.device = document.getElementById("asr-device").value;
+  const asr_lang = document.getElementById("asr-language").value;
+  updated_config.asr.language = asr_lang || null;
+
+  const success = await save_config(updated_config);
+  show_save_status("save-asr-status", success);
 });
 
 // ── Save hotkeys ─────────────────────────────────────────────────────────────
@@ -272,17 +401,17 @@ document.addEventListener("keyup", (key_event) => {
 document.getElementById("save-hotkeys-btn")?.addEventListener("click", async () => {
   const hotkey_record_el = document.getElementById("hotkey-record");
   const hotkey_mode_el = document.getElementById("hotkey-mode-switch");
-
   const updated_config = JSON.parse(JSON.stringify(app_config));
 
   if (hotkey_record_el?.dataset.storageValue) {
     updated_config.hotkey = hotkey_record_el.dataset.storageValue;
   }
-  if (hotkey_mode_el?.dataset.storageValue) {
-    updated_config.mode_switch_hotkey = hotkey_mode_el.dataset.storageValue;
+  if (hotkey_mode_el) {
+    updated_config.mode_switch_hotkey = hotkey_mode_el.dataset.storageValue || "";
   }
 
-  await save_config(updated_config);
+  const success = await save_config(updated_config);
+  show_save_status("save-hotkeys-status", success);
 });
 
 // ── Save model settings ──────────────────────────────────────────────────────
@@ -330,7 +459,8 @@ document.getElementById("save-model-btn")?.addEventListener("click", async () =>
     updated_config.llm.thinking_enabled = document.getElementById("compatible-thinking").checked;
   }
 
-  await save_config(updated_config);
+  const success = await save_config(updated_config);
+  show_save_status("save-model-status", success);
 });
 
 // ── General settings auto-save ───────────────────────────────────────────────
@@ -381,6 +511,12 @@ function render_preset_list(preset_entries) {
   }
 
   preset_entries.forEach((preset_entry, preset_index) => {
+    const hotkey_display = preset_entry.hotkey
+      ? format_hotkey_display(preset_entry.hotkey)
+      : "None";
+
+    const preset_wrapper = document.createElement("div");
+
     const preset_item = document.createElement("div");
     preset_item.className = "preset-item";
     preset_item.innerHTML = `
@@ -388,9 +524,38 @@ function render_preset_list(preset_entries) {
         <div class="preset-item-name">${preset_entry.name || "Unnamed"}</div>
         <div class="preset-item-meta">${preset_entry.processing || "direct"} · ${preset_entry.language || "source"}</div>
       </div>
+      <div class="preset-hotkey-btn" id="preset-hotkey-${preset_index}" tabindex="0"
+           data-storage-value="${preset_entry.hotkey || ""}" title="Click to change hotkey">${hotkey_display}</div>
+      <button class="preset-item-edit" data-index="${preset_index}" title="Edit">✎</button>
       <button class="preset-item-delete" data-index="${preset_index}" title="Delete">✕</button>
     `;
-    preset_list_el.appendChild(preset_item);
+    preset_wrapper.appendChild(preset_item);
+
+    if (editing_preset_index === preset_index) {
+      const edit_form = build_preset_edit_form(preset_entry, preset_index);
+      preset_wrapper.appendChild(edit_form);
+    }
+
+    preset_list_el.appendChild(preset_wrapper);
+  });
+
+  preset_list_el.querySelectorAll(".preset-hotkey-btn").forEach(capture_el => {
+    capture_el.addEventListener("click", (click_event) => {
+      click_event.stopPropagation();
+      start_hotkey_capture(capture_el);
+    });
+  });
+
+  preset_list_el.querySelectorAll(".preset-item-edit").forEach(edit_btn => {
+    edit_btn.addEventListener("click", () => {
+      const preset_index = parseInt(edit_btn.dataset.index);
+      if (editing_preset_index === preset_index) {
+        editing_preset_index = -1;
+      } else {
+        editing_preset_index = preset_index;
+      }
+      render_preset_list(app_config.presets || []);
+    });
   });
 
   preset_list_el.querySelectorAll(".preset-item-delete").forEach(delete_btn => {
@@ -398,17 +563,80 @@ function render_preset_list(preset_entries) {
       const preset_index = parseInt(delete_btn.dataset.index);
       const updated_config = JSON.parse(JSON.stringify(app_config));
       updated_config.presets.splice(preset_index, 1);
+      editing_preset_index = -1;
       await save_config(updated_config);
     });
   });
+}
+
+function build_preset_edit_form(preset_entry, preset_index) {
+  const form_el = document.createElement("div");
+  form_el.className = "preset-edit-form";
+
+  const processing_options = ["direct", "polish", "custom"].map(val =>
+    `<option value="${val}" ${preset_entry.processing === val ? "selected" : ""}>${val.charAt(0).toUpperCase() + val.slice(1)}</option>`
+  ).join("");
+
+  const language_options = [
+    { val: "source", label: "Original" },
+    { val: "en", label: "English" },
+    { val: "zh", label: "Chinese" },
+  ].map(opt =>
+    `<option value="${opt.val}" ${preset_entry.language === opt.val ? "selected" : ""}>${opt.label}</option>`
+  ).join("");
+
+  form_el.innerHTML = `
+    <div class="form-row">
+      <div class="form-label">Name</div>
+      <input type="text" id="edit-preset-name-${preset_index}" value="${preset_entry.name || ""}">
+    </div>
+    <div class="form-row">
+      <div class="form-label">Processing</div>
+      <select id="edit-preset-processing-${preset_index}">${processing_options}</select>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Language</div>
+      <select id="edit-preset-language-${preset_index}">${language_options}</select>
+    </div>
+    <div class="form-group">
+      <div class="form-label" style="margin-bottom:4px">Custom Prompt</div>
+      <textarea id="edit-preset-prompt-${preset_index}">${preset_entry.custom_prompt || ""}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" id="edit-preset-save-${preset_index}">Save</button>
+      <button class="btn btn-secondary" id="edit-preset-cancel-${preset_index}">Cancel</button>
+    </div>
+  `;
+
+  setTimeout(() => {
+    document.getElementById(`edit-preset-save-${preset_index}`)?.addEventListener("click", async () => {
+      const updated_config = JSON.parse(JSON.stringify(app_config));
+      const preset = updated_config.presets[preset_index];
+      preset.name = document.getElementById(`edit-preset-name-${preset_index}`).value.trim() || preset.name;
+      preset.processing = document.getElementById(`edit-preset-processing-${preset_index}`).value;
+      preset.language = document.getElementById(`edit-preset-language-${preset_index}`).value;
+      preset.custom_prompt = document.getElementById(`edit-preset-prompt-${preset_index}`).value.trim();
+      editing_preset_index = -1;
+      await save_config(updated_config);
+    });
+
+    document.getElementById(`edit-preset-cancel-${preset_index}`)?.addEventListener("click", () => {
+      editing_preset_index = -1;
+      render_preset_list(app_config.presets || []);
+    });
+  }, 0);
+
+  return form_el;
 }
 
 document.getElementById("add-preset-btn")?.addEventListener("click", async () => {
   const preset_name = document.getElementById("new-preset-name").value.trim();
   if (!preset_name) return;
 
+  const hotkey_el = document.getElementById("new-preset-hotkey");
   const new_preset = {
     name: preset_name,
+    hotkey: hotkey_el?.dataset.storageValue || "",
     processing: document.getElementById("new-preset-processing").value,
     language: document.getElementById("new-preset-language").value,
     custom_prompt: document.getElementById("new-preset-prompt").value.trim(),
@@ -422,6 +650,10 @@ document.getElementById("add-preset-btn")?.addEventListener("click", async () =>
 
   document.getElementById("new-preset-name").value = "";
   document.getElementById("new-preset-prompt").value = "";
+  if (hotkey_el) {
+    hotkey_el.textContent = "Click to set";
+    hotkey_el.dataset.storageValue = "";
+  }
 });
 
 // ── About ────────────────────────────────────────────────────────────────────
@@ -452,7 +684,7 @@ document.getElementById("check-updates-btn")?.addEventListener("click", async ()
 
 async function save_config(config_data) {
   try {
-    await window.pywebview.api.save_config(config_data);
+    const result = await window.pywebview.api.save_config(config_data);
     app_config = config_data;
 
     const current_theme = (config_data.ui || {}).theme || "system";
@@ -460,8 +692,10 @@ async function save_config(config_data) {
 
     const current_presets = config_data.presets || [];
     render_preset_list(current_presets);
+    return result !== false;
   } catch (save_error) {
     console.error("Failed to save config:", save_error);
+    return false;
   }
 }
 

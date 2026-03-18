@@ -27,6 +27,7 @@ class AudioRecorder:
         self.audio_channels = config_manager.get_value("audio.channels", 1)
         self.silence_threshold = config_manager.get_value("audio.silence_threshold", 500)
         self.silence_duration = config_manager.get_value("audio.silence_duration", 2.0)
+        self.input_device = config_manager.get_value("audio.input_device", None)
         self.recording_active = False
         self.audio_frames = []
         self.recording_stream = None
@@ -53,12 +54,16 @@ class AudioRecorder:
         self.recording_active = True
 
         try:
-            self.recording_stream = sounddevice.InputStream(
-                samplerate=self.sample_rate,
-                channels=self.audio_channels,
-                dtype="int16",
-                callback=self._audio_callback,
-            )
+            stream_kwargs = {
+                "samplerate": self.sample_rate,
+                "channels": self.audio_channels,
+                "dtype": "int16",
+                "callback": self._audio_callback,
+            }
+            if self.input_device is not None:
+                stream_kwargs["device"] = int(self.input_device)
+
+            self.recording_stream = sounddevice.InputStream(**stream_kwargs)
             self.recording_stream.start()
             logger.info("Recording started")
             return True
