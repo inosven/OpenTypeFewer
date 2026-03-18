@@ -22,7 +22,13 @@ def _preload_nvidia_dlls() -> None:
     import ctypes
     import site
 
-    search_roots = site.getsitepackages() + [site.getusersitepackages()]
+    search_roots = list(site.getsitepackages()) + [site.getusersitepackages()]
+
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            search_roots.insert(0, meipass)
+
     target_prefixes = ("cublas", "cublaslt", "cudnn")
 
     for site_root in search_roots:
@@ -296,3 +302,9 @@ class ASREngine:
             logger.info(f"ASR warmup complete in {warmup_elapsed:.1f}s")
         except Exception as warmup_error:
             logger.warning(f"ASR warmup failed: {warmup_error}")
+            if self.device_type == "auto" and self._resolve_device() != "cpu":
+                logger.info("CUDA warmup failed, falling back to CPU")
+                self.whisper_model = None
+                self.device_type = "cpu"
+                self.load_model()
+                self._warmup_inference()

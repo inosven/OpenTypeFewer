@@ -9,7 +9,7 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 - **Voice to clipboard + auto-paste** — Press a hotkey, speak, release. Result is copied to clipboard and pasted at cursor position automatically.
 - **Offline speech recognition** — Powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (CTranslate2-based Whisper). No internet required. NVIDIA GPU accelerated when available.
 - **Chinese, English, and mixed language** — Auto-detects spoken language or force a specific one.
-- **Two-dimensional output mode** — Independently control *processing style* (Direct / Polish / Custom) and *output language* (Original / Chinese / English / custom).
+- **Two-dimensional output mode** — Independently control _processing style_ (Direct / Polish / Custom) and _output language_ (Original / Chinese / English / custom).
 - **Presets** — Save multiple output configurations (processing + language + custom prompt) with dedicated hotkeys. Switch instantly between presets like "Business Email", "Chinese Polish", etc.
 - **LLM polishing** — Optionally clean up transcriptions with a local LLM via [Ollama](https://ollama.com/) or a remote API (Anthropic / OpenAI / OpenAI-compatible). Supports extended thinking for supported models.
 - **Mini floating panel** — A compact always-on-top status panel showing recording state, current mode, and volume bars. Hide to tray and restore with a double-click on the tray icon.
@@ -22,15 +22,15 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 
 - **Python 3.10+** (for running from source)
 - **Ollama** (optional, for local LLM polishing) — [Install Ollama](https://ollama.com/download)
-  - Pull a model: `ollama pull qwen3:1.7b` (fast) or `ollama pull qwen3:8b` (accurate)
+  - Pull a model: `ollama pull qwen3.5:0.8b` (fast) or `ollama pull qwen3.5:8b` (accurate)
 - **Microphone** — Configurable in Settings (default: system default mic)
 - **NVIDIA GPU** (optional, Windows) — Install `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12` for GPU-accelerated speech recognition. Auto-detected at startup.
 
 ## Quick Start
 
-### Download realease, install and ready to go
-[Windows](https://github.com/inosven/OpenTypeFewer/releases/tag/v0.1.0)
-[MacOS](https://github.com/inosven/OpenTypeFewer/releases/tag/MacOS)
+### Download
+
+[Latest Release](https://github.com/inosven/OpenTypeFewer/releases/latest) — Windows (CUDA / CPU) and macOS builds available.
 
 ### Install from Source
 
@@ -62,11 +62,11 @@ macOS requires two permissions on first launch:
 
 ## Usage
 
-| Action | Default Hotkey |
-|--------|---------------|
-| Start/stop recording | `Ctrl+Shift+Space` |
-| Cycle processing mode | `Ctrl+Shift+M` |
-| Activate preset | User-defined (e.g. `Ctrl+Alt+1`) |
+| Action                | Default Hotkey                   |
+| --------------------- | -------------------------------- |
+| Start/stop recording  | `Ctrl+Shift+Space`               |
+| Cycle processing mode | `Ctrl+Shift+M`                   |
+| Activate preset       | User-defined (e.g. `Ctrl+Alt+1`) |
 
 ### Trigger Modes
 
@@ -75,27 +75,28 @@ macOS requires two permissions on first launch:
 
 ### Processing Styles
 
-| Style | Description |
-|-------|-------------|
-| **Direct** | Raw transcription, no LLM processing |
+| Style      | Description                                       |
+| ---------- | ------------------------------------------------- |
+| **Direct** | Raw transcription, no LLM processing              |
 | **Polish** | Clean up spoken language into fluent written form |
-| **Custom** | User-defined prompt as a style modifier |
+| **Custom** | User-defined prompt as a style modifier           |
 
 ### Output Language
 
-| Option | Description |
-|--------|-------------|
+| Option       | Description                    |
+| ------------ | ------------------------------ |
 | **Original** | Keep the spoken language as-is |
-| **Chinese** | Translate/output in Chinese |
-| **English** | Translate/output in English |
+| **Chinese**  | Translate/output in Chinese    |
+| **English**  | Translate/output in English    |
 
 **Direct** mode always skips the LLM entirely, regardless of output language. **Polish** and **Custom** modes call the LLM.
 
-In **Custom** mode, the custom prompt acts as a *style modifier* combined with the output language. For example, setting language to English and custom prompt to "keep it casual" will translate to informal English — the language instruction and the style hint both apply.
+In **Custom** mode, the custom prompt acts as a _style modifier_ combined with the output language. For example, setting language to English and custom prompt to "keep it casual" will translate to informal English — the language instruction and the style hint both apply.
 
 ### Mini Panel
 
 The mini panel opens automatically on startup (Windows) or via **Show Panel** in the tray menu. Double-click the tray icon to restore it (Windows). It shows:
+
 - Settings and minimize-to-tray buttons at the top
 - Current state (Ready / Recording / Processing) with animated orb
 - Active preset name, mode, and hotkey
@@ -103,18 +104,19 @@ The mini panel opens automatically on startup (Windows) or via **Show Panel** in
 
 ### LLM Providers
 
-| Provider | Description |
-|----------|-------------|
-| **Ollama** | Local inference. Model dropdown auto-populated from running Ollama. |
-| **Anthropic** | Claude API. |
-| **OpenAI** | OpenAI API. |
-| **Compatible** | Any OpenAI-compatible endpoint (LM Studio, vLLM, Groq, etc.). |
+| Provider       | Description                                                         |
+| -------------- | ------------------------------------------------------------------- |
+| **Ollama**     | Local inference. Model dropdown auto-populated from running Ollama. |
+| **Anthropic**  | Claude API.                                                         |
+| **OpenAI**     | OpenAI API.                                                         |
+| **Compatible** | Any OpenAI-compatible endpoint (LM Studio, vLLM, Groq, etc.).       |
 
 **Enable Thinking** toggle is available for each provider. Maps to extended reasoning where supported (Qwen3 thinking, Claude extended thinking, OpenAI `reasoning_effort=high`).
 
 ### Presets
 
 Save different output configurations and bind them to hotkeys. Each preset stores:
+
 - Processing style (Direct / Polish / Custom)
 - Output language
 - Custom prompt
@@ -131,8 +133,8 @@ See [config.example.yaml](./config.example.yaml) for all options.
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
+| Variable           | Description                                    |
+| ------------------ | ---------------------------------------------- |
 | `VOICEPAD_API_KEY` | API key for remote LLM (overrides config file) |
 
 ## CLI Options
@@ -173,7 +175,7 @@ After installing the DMG, grant Accessibility and Microphone permissions on firs
 build\build_win.bat
 ```
 
-Output: `dist\VoicePad\VoicePad.exe`
+Output: `dist\OpenTypeFewer\OpenTypeFewer.exe` (CUDA and CPU versions)
 
 ## Project Structure
 

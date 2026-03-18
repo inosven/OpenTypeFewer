@@ -1,63 +1,41 @@
 """System tray application for VoicePad."""
 
 import logging
+import os
+import sys
 import threading
+from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
 logger = logging.getLogger("voicepad.tray")
 
-ICON_SIZE = 64
-
-ICON_COLORS = {
-    "idle": (128, 128, 128),
-    "recording": (220, 50, 50),
-    "processing": (50, 120, 220),
+ICON_FILE_MAP = {
+    "idle": "voicepad_idle.png",
+    "recording": "voicepad_recording.png",
+    "processing": "voicepad_processing.png",
 }
 
 
-def _create_tray_icon(icon_state: str) -> Image.Image:
-    icon_image = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 0))
-    draw_context = ImageDraw.Draw(icon_image)
+def _resolve_icons_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "icons"
+    return Path(__file__).parent.parent.parent.parent.parent / "icons"
 
-    fill_color = ICON_COLORS.get(icon_state, ICON_COLORS["idle"])
 
-    draw_context.ellipse(
-        [ICON_SIZE // 4, ICON_SIZE // 8, 3 * ICON_SIZE // 4, 5 * ICON_SIZE // 8],
-        fill=fill_color,
-    )
-    draw_context.rectangle(
-        [
-            ICON_SIZE // 4 + 4,
-            ICON_SIZE // 2,
-            3 * ICON_SIZE // 4 - 4,
-            3 * ICON_SIZE // 4,
-        ],
-        fill=fill_color,
-    )
-    draw_context.arc(
-        [ICON_SIZE // 6, ICON_SIZE // 4, 5 * ICON_SIZE // 6, 3 * ICON_SIZE // 4],
-        start=0,
-        end=180,
-        fill=fill_color,
-        width=2,
-    )
-    draw_context.line(
-        [ICON_SIZE // 2, 3 * ICON_SIZE // 4, ICON_SIZE // 2, 7 * ICON_SIZE // 8],
-        fill=fill_color,
-        width=3,
-    )
-    draw_context.line(
-        [
-            ICON_SIZE // 3,
-            7 * ICON_SIZE // 8,
-            2 * ICON_SIZE // 3,
-            7 * ICON_SIZE // 8,
-        ],
-        fill=fill_color,
-        width=3,
-    )
-    return icon_image
+def _load_tray_icon(icon_state: str) -> Image.Image:
+    icons_dir = _resolve_icons_dir()
+    icon_filename = ICON_FILE_MAP.get(icon_state, ICON_FILE_MAP["idle"])
+    icon_path = icons_dir / icon_filename
+
+    if icon_path.exists():
+        return Image.open(str(icon_path))
+
+    fallback_path = icons_dir / "voicepad.png"
+    if fallback_path.exists():
+        return Image.open(str(fallback_path))
+
+    return Image.new("RGBA", (64, 64), (128, 128, 128, 255))
 
 
 class TrayApp:
@@ -69,12 +47,19 @@ class TrayApp:
     def run_tray(self) -> None:
         import pystray
 
+        icon_image = _load_tray_icon("idle")
+        logger.info(f"Tray icon loaded: size={icon_image.size}, mode={icon_image.mode}")
+
+        tray_menu = self._build_tray_menu()
+        logger.info("Tray menu built successfully")
+
         self.tray_icon = pystray.Icon(
             "OpenTypeFewer",
-            icon=_create_tray_icon("idle"),
+            icon=icon_image,
             title="OpenTypeFewer",
-            menu=self._build_tray_menu(),
+            menu=tray_menu,
         )
+        logger.info("Starting pystray run loop")
         self.tray_icon.run(setup=self._on_tray_ready)
 
     def _on_tray_ready(self, icon) -> None:
@@ -95,7 +80,7 @@ class TrayApp:
         if not self.tray_icon:
             return
         try:
-            self.tray_icon.icon = _create_tray_icon(icon_state)
+            self.tray_icon.icon = _load_tray_icon(icon_state)
         except Exception as icon_error:
             logger.warning(f"Icon update failed: {icon_error}")
 

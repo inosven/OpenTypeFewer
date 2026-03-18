@@ -10,6 +10,7 @@ build/output/
 .venv/
 .env
 *.spec
+!build/*.spec
 
 tests/
 

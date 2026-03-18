@@ -114,7 +114,7 @@ class VoicePadApp:
             logger.info("OpenTypeFewer running (macOS mode)")
             self.tray_app.run_tray()  # blocks main thread via AppKit run loop
         else:
-            tray_thread = threading.Thread(target=self.tray_app.run_tray, daemon=True)
+            tray_thread = threading.Thread(target=self._run_tray_safe, daemon=True)
             tray_thread.start()
 
             warmup_thread = threading.Thread(target=self._warmup_models, daemon=True)
@@ -138,6 +138,12 @@ class VoicePadApp:
         if active_backend == "ollama":
             self.llm_router.initialize_backends()
             self.llm_router.ollama_backend.warm_up_model()
+
+    def _run_tray_safe(self) -> None:
+        try:
+            self.tray_app.run_tray()
+        except Exception as tray_error:
+            logger.error(f"Tray thread crashed: {tray_error}", exc_info=True)
 
     def on_tray_ready(self) -> None:
         logger.info("Tray ready")
@@ -387,7 +393,17 @@ class VoicePadApp:
     def shutdown(self) -> None:
         logger.info("OpenTypeFewer shutting down")
         self.hotkey_manager.stop_listening()
+
+        for child_proc in (self.panel_process, self.settings_process):
+            if child_proc and child_proc.poll() is None:
+                try:
+                    child_proc.terminate()
+                    child_proc.wait(timeout=3)
+                except Exception:
+                    child_proc.kill()
+
         self.tray_app.quit_tray()
+        os._exit(0)
 
     def _process_audio_pipeline(
         self,
