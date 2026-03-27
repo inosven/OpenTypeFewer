@@ -39,7 +39,8 @@ def main() -> None:
         background_color="#1c1c1e",
     )
 
-    webview.start(debug=False)
+    gui_backend = "edgechromium" if sys.platform == "win32" else None
+    webview.start(gui=gui_backend, debug=False)
 
 
 def _resolve_frontend_path(filename: str) -> str:

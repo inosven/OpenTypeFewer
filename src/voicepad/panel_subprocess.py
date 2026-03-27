@@ -50,7 +50,8 @@ def main() -> None:
         target=_watch_restore_signal, args=(window_api,), daemon=True
     ).start()
 
-    webview.start(debug=False)
+    gui_backend = "edgechromium" if sys.platform == "win32" else None
+    webview.start(gui=gui_backend, debug=False)
 
 
 def _resolve_frontend_path(filename: str) -> str:
