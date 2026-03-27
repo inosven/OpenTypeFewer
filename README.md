@@ -12,7 +12,7 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 - **Two-dimensional output mode** — Independently control _processing style_ (Direct / Polish / Custom) and _output language_ (Original / Chinese / English / custom).
 - **Presets** — Save multiple output configurations (processing + language + custom prompt) with dedicated hotkeys. Switch instantly between presets like "Business Email", "Chinese Polish", etc.
 - **LLM polishing** — Optionally clean up transcriptions with a local LLM via [Ollama](https://ollama.com/) or a remote API (Anthropic / OpenAI / OpenAI-compatible). Supports extended thinking for supported models.
-- **Mini floating panel** — A compact always-on-top status panel showing recording state, current mode, and volume bars. Hide to tray and restore with a double-click on the tray icon.
+- **Mini floating panel** — A compact always-on-top status panel showing recording state, current mode, and volume bars. Hide to tray and restore with a double-click on the tray icon. Uses native WebKit on macOS and Edge Chromium (WebView2) on Windows for optimal rendering.
 - **System tray app** — Lives in your tray. Double-click to show panel (Windows).
 - **Settings GUI** — Full-featured settings window. Configure ASR model/device, microphone, LLM providers, hotkeys, presets, and appearance.
 - **Dark / Light / System theme** — Follows your OS theme or set it manually.
