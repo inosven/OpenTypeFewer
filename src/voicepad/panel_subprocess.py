@@ -53,28 +53,44 @@ def main() -> None:
     gui_backend = "edgechromium" if sys.platform == "win32" else None
     webview.start(gui=gui_backend, debug=False)
 
+    _signal_quit_app()
+
 
 def _resolve_frontend_path(filename: str) -> str:
-    frontend_dir = Path(__file__).parent / "modules" / "main_window" / "frontend"
+    if getattr(sys, "frozen", False):
+        frontend_dir = Path(sys._MEIPASS) / "voicepad" / "modules" / "main_window" / "frontend"
+    else:
+        frontend_dir = Path(__file__).parent / "modules" / "main_window" / "frontend"
     return str(frontend_dir / filename)
 
 
-def _resolve_signal_path() -> Path:
+def _resolve_signal_dir() -> Path:
     if getattr(sys, "frozen", False):
-        return Path(os.path.expanduser("~")) / ".opentypefewer" / "open_settings.signal"
-    return Path(__file__).parent.parent.parent / "temp" / "open_settings.signal"
+        return Path.home() / ".opentypefewer"
+    return Path(__file__).parent.parent.parent / "temp"
+
+
+def _resolve_signal_path() -> Path:
+    signal_dir = _resolve_signal_dir()
+    return signal_dir / "open_settings.signal"
 
 
 def _resolve_restore_signal_path() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(os.path.expanduser("~")) / ".opentypefewer" / "restore_panel.signal"
-    return Path(__file__).parent.parent.parent / "temp" / "restore_panel.signal"
+    signal_dir = _resolve_signal_dir()
+    return signal_dir / "restore_panel.signal"
 
 
 def _signal_open_settings() -> None:
     signal_file = _resolve_signal_path()
     signal_file.parent.mkdir(parents=True, exist_ok=True)
     signal_file.write_text("open")
+
+
+def _signal_quit_app() -> None:
+    signal_dir = _resolve_signal_dir()
+    signal_dir.mkdir(parents=True, exist_ok=True)
+    signal_file = signal_dir / "quit_app.signal"
+    signal_file.write_text("quit")
 
 
 def _watch_restore_signal(window_api) -> None:

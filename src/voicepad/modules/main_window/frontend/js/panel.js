@@ -92,6 +92,12 @@ async function poll_status() {
   setTimeout(poll_status, POLL_INTERVAL_MS);
 }
 
+document.getElementById("minimize-btn").addEventListener("click", () => {
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.minimize_window();
+  }
+});
+
 document.getElementById("settings-btn").addEventListener("click", () => {
   if (window.pywebview && window.pywebview.api) {
     window.pywebview.api.open_settings();
@@ -112,11 +118,12 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
   apply_theme("system");
 });
 
+apply_theme("system");
+
 window.addEventListener("pywebviewready", () => {
   poll_status();
 });
 
-// Fallback in case pywebviewready already fired or fires late
 setTimeout(() => {
   if (window.pywebview) {
     poll_status();

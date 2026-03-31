@@ -11,8 +11,8 @@ if getattr(sys, "frozen", False):
     import faster_whisper.utils as _fw_utils
 
     def _get_assets_path():
-        # sys.executable = .../VoicePad.app/Contents/MacOS/VoicePad
-        # assets land at  .../VoicePad.app/Contents/Resources/faster_whisper/assets
+        # sys.executable = .../OpenTypeFewer.app/Contents/MacOS/OpenTypeFewer
+        # assets land at  .../OpenTypeFewer.app/Contents/Resources/faster_whisper/assets
         candidates = [
             os.path.join(os.path.dirname(sys.executable),
                          "..", "Resources", "faster_whisper", "assets"),

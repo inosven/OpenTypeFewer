@@ -3,9 +3,16 @@
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 
 logger = logging.getLogger("voicepad.window_api")
+
+
+def _resolve_signal_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path.home() / ".opentypefewer"
+    return Path(__file__).parent.parent.parent.parent.parent / "temp"
 
 
 class WindowApi:
@@ -35,6 +42,14 @@ class WindowApi:
             logger.warning(f"Failed to read status file: {read_error}")
             return {"state": "ready"}
 
+    def minimize_window(self) -> None:
+        try:
+            import webview
+            if webview.windows:
+                webview.windows[0].minimize()
+        except Exception as minimize_error:
+            logger.warning(f"Failed to minimize window: {minimize_error}")
+
     def open_settings(self) -> None:
         if self._open_settings_callback:
             try:
@@ -59,6 +74,7 @@ class WindowApi:
             save_success = self._config_manager.save_config()
             if save_success:
                 logger.info(f"Config saved via window API to {self._config_manager.config_path}")
+                self._write_reload_signal()
             else:
                 logger.error("Config save returned False")
             return save_success
@@ -184,6 +200,15 @@ class WindowApi:
     def open_github(self) -> None:
         import webbrowser
         webbrowser.open("https://github.com/inosven/OpenTypeFewer")
+
+    def _write_reload_signal(self) -> None:
+        try:
+            signal_dir = _resolve_signal_dir()
+            signal_dir.mkdir(parents=True, exist_ok=True)
+            signal_path = signal_dir / "reload_config.signal"
+            signal_path.write_text("reload")
+        except OSError as signal_error:
+            logger.warning(f"Failed to write reload signal: {signal_error}")
 
     def _redact_sensitive_fields(self, config_data: dict) -> None:
         llm_data = config_data.get("llm", {})

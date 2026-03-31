@@ -292,6 +292,7 @@ class VoicePadApp:
 
     def _watch_panel_for_settings_signal(self) -> None:
         signal_file_path = self._resolve_signal_file_path()
+        quit_signal_path = signal_file_path.parent / "quit_app.signal"
         while self.panel_process and self.panel_process.poll() is None:
             if signal_file_path.exists():
                 try:
@@ -301,22 +302,43 @@ class VoicePadApp:
                 self.open_settings()
             import time
             time.sleep(0.2)
+        if quit_signal_path.exists():
+            try:
+                quit_signal_path.unlink()
+            except OSError:
+                pass
+            self.shutdown()
 
     def open_settings(self) -> None:
         if self.settings_process and self.settings_process.poll() is None:
             return
 
         import subprocess
+        import time
         config_path = str(self.config_manager.config_path)
         if getattr(sys, "frozen", False):
             cmd = [sys.executable, "--settings-only", config_path]
         else:
             cmd = [sys.executable, "-m", "voicepad.settings_subprocess", config_path]
         self.settings_process = subprocess.Popen(cmd)
+        proc = self.settings_process
 
         def _watch_settings_proc():
-            self.settings_process.wait()
-            self.reload_config()
+            signal_path = self._resolve_reload_signal_path()
+            while proc.poll() is None:
+                if signal_path.exists():
+                    try:
+                        signal_path.unlink()
+                    except OSError:
+                        pass
+                    self.reload_config()
+                time.sleep(0.3)
+            if signal_path.exists():
+                try:
+                    signal_path.unlink()
+                except OSError:
+                    pass
+                self.reload_config()
 
         threading.Thread(target=_watch_settings_proc, daemon=True).start()
 
@@ -377,6 +399,12 @@ class VoicePadApp:
         project_root = Path(__file__).parent.parent.parent
         return str(project_root / "temp" / "ui_status.json")
 
+    def _resolve_reload_signal_path(self) -> Path:
+        if getattr(sys, "frozen", False):
+            return Path.home() / ".opentypefewer" / "reload_config.signal"
+        project_root = Path(__file__).parent.parent.parent
+        return project_root / "temp" / "reload_config.signal"
+
     def reload_config(self) -> None:
         logger.info("Reloading configuration")
         self.config_manager.load_config()
@@ -388,19 +416,23 @@ class VoicePadApp:
         self.llm_router.update_config(self.config_manager)
         self.hotkey_manager.update_hotkeys(self.config_manager)
         self.tray_app.rebuild_menu()
+        self.write_ui_status()
         logger.info("Configuration reloaded")
 
     def shutdown(self) -> None:
+        if getattr(self, "_shutting_down", False):
+            return
+        self._shutting_down = True
         logger.info("OpenTypeFewer shutting down")
         self.hotkey_manager.stop_listening()
 
-        for child_proc in (self.panel_process, self.settings_process):
-            if child_proc and child_proc.poll() is None:
+        for proc_name, proc_ref in [("Panel", self.panel_process), ("Settings", self.settings_process)]:
+            if proc_ref and proc_ref.poll() is None:
                 try:
-                    child_proc.terminate()
-                    child_proc.wait(timeout=3)
-                except Exception:
-                    child_proc.kill()
+                    proc_ref.terminate()
+                    proc_ref.wait(timeout=3)
+                except Exception as kill_error:
+                    logger.warning(f"{proc_name} process cleanup: {kill_error}")
 
         self.tray_app.quit_tray()
         os._exit(0)

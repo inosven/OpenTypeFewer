@@ -44,7 +44,10 @@ def main() -> None:
 
 
 def _resolve_frontend_path(filename: str) -> str:
-    frontend_dir = Path(__file__).parent / "modules" / "main_window" / "frontend"
+    if getattr(sys, "frozen", False):
+        frontend_dir = Path(sys._MEIPASS) / "voicepad" / "modules" / "main_window" / "frontend"
+    else:
+        frontend_dir = Path(__file__).parent / "modules" / "main_window" / "frontend"
     return str(frontend_dir / filename)
 
 

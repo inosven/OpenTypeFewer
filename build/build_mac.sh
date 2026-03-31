@@ -10,7 +10,7 @@ echo "=== OpenTypeFewer macOS Build ==="
 echo
 
 # ── Convert PNG icon to ICNS ──────────────────────────────────────────────────
-ICON_PNG="icons/voicepad.png"
+ICON_PNG="../logo-color.png"
 ICON_ICNS="icons/opentypefewer.icns"
 
 if [ ! -f "$ICON_ICNS" ]; then

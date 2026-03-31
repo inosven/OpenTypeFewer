@@ -7,10 +7,12 @@ __pycache__/
 *.egg
 dist/
 build/output/
+build/voicepad_mac/
 .venv/
 .env
 *.spec
 !build/*.spec
+.superpowers/
 
 tests/
 

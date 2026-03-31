@@ -396,6 +396,37 @@ document.getElementById("save-asr-btn")?.addEventListener("click", async () => {
   show_save_status("save-asr-status", success);
 });
 
+// ── Hotkey conflict detection ────────────────────────────────────────────────
+
+function collect_all_hotkeys(config_data, exclude_field) {
+  const hotkey_map = {};
+  if (exclude_field !== "hotkey" && config_data.hotkey) {
+    hotkey_map["Record"] = config_data.hotkey;
+  }
+  if (exclude_field !== "mode_switch_hotkey" && config_data.mode_switch_hotkey) {
+    hotkey_map["Mode Switch"] = config_data.mode_switch_hotkey;
+  }
+  const preset_list = config_data.presets || [];
+  preset_list.forEach((preset_entry, preset_index) => {
+    if (preset_entry.hotkey) {
+      const preset_key = `preset_${preset_index}`;
+      if (exclude_field !== preset_key) {
+        hotkey_map[preset_entry.name || `Preset ${preset_index + 1}`] = preset_entry.hotkey;
+      }
+    }
+  });
+  return hotkey_map;
+}
+
+function find_hotkey_conflict(new_hotkey, config_data, exclude_field) {
+  if (!new_hotkey) return null;
+  const existing_map = collect_all_hotkeys(config_data, exclude_field);
+  for (const [label, existing_hotkey] of Object.entries(existing_map)) {
+    if (existing_hotkey === new_hotkey) return label;
+  }
+  return null;
+}
+
 // ── Save hotkeys ─────────────────────────────────────────────────────────────
 
 document.getElementById("save-hotkeys-btn")?.addEventListener("click", async () => {
@@ -403,11 +434,30 @@ document.getElementById("save-hotkeys-btn")?.addEventListener("click", async () 
   const hotkey_mode_el = document.getElementById("hotkey-mode-switch");
   const updated_config = JSON.parse(JSON.stringify(app_config));
 
-  if (hotkey_record_el?.dataset.storageValue) {
-    updated_config.hotkey = hotkey_record_el.dataset.storageValue;
+  const new_record = hotkey_record_el?.dataset.storageValue;
+  const new_mode = hotkey_mode_el?.dataset.storageValue || "";
+
+  if (new_record) {
+    const conflict = find_hotkey_conflict(new_record, updated_config, "hotkey");
+    if (conflict) {
+      show_toast(`Record hotkey conflicts with "${conflict}"`);
+      return;
+    }
+    updated_config.hotkey = new_record;
   }
-  if (hotkey_mode_el) {
-    updated_config.mode_switch_hotkey = hotkey_mode_el.dataset.storageValue || "";
+
+  if (new_mode) {
+    const conflict = find_hotkey_conflict(new_mode, updated_config, "mode_switch_hotkey");
+    if (conflict) {
+      show_toast(`Mode Switch hotkey conflicts with "${conflict}"`);
+      return;
+    }
+  }
+  updated_config.mode_switch_hotkey = new_mode;
+
+  if (new_record && new_mode && new_record === new_mode) {
+    show_toast("Record and Mode Switch hotkeys cannot be the same");
+    return;
   }
 
   const success = await save_config(updated_config);

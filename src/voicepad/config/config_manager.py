@@ -60,6 +60,7 @@ DEFAULT_CONFIG = {
         "channels": 1,
         "silence_threshold": 500,
         "silence_duration": 2.0,
+        "input_device": None,
     },
     "notification": {
         "enabled": True,
