@@ -15,6 +15,7 @@ build/voicepad_mac/
 .superpowers/
 
 tests/
+bin/claudecode_*
 
 CLAUDE.md
 claude_instructions/
