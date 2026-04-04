@@ -183,6 +183,9 @@ build\build_win.bat
 src/voicepad/
 ├── app.py                     # 主控制器
 ├── __main__.py                # CLI 入口
+├── asr_subprocess.py          # ASR 子进程（隔离模型加载）
+├── panel_subprocess.py        # 迷你面板子进程（pywebview）
+├── settings_subprocess.py     # 设置窗口子进程（pywebview）
 ├── config/                    # 配置管理
 ├── subsystems/
 │   ├── asr/                   # 语音识别（faster-whisper）

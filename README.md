@@ -183,6 +183,9 @@ Output: `dist\OpenTypeFewer\OpenTypeFewer.exe` (CUDA and CPU versions)
 src/voicepad/
 ├── app.py                     # Main controller
 ├── __main__.py                # CLI entry point
+├── asr_subprocess.py          # ASR child process (isolated model loading)
+├── panel_subprocess.py        # Mini panel child process (pywebview)
+├── settings_subprocess.py     # Settings window child process (pywebview)
 ├── config/                    # Configuration management
 ├── subsystems/
 │   ├── asr/                   # Speech recognition (faster-whisper)
