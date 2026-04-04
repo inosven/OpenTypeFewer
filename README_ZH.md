@@ -33,8 +33,7 @@
 | 平台 | 下载 |
 | ---- | ---- |
 | macOS | [OpenTypeFewer-macos.dmg](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-macos.dmg) |
-| Windows（CUDA） | [OpenTypeFewer-win-cuda.zip](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-win-cuda.zip) |
-| Windows（CPU） | [OpenTypeFewer-win-cpu.zip](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-win-cpu.zip) |
+| Windows | [OpenTypeFewer.zip](https://github.com/inosven/OpenTypeFewer/releases/download/v1.0.0/OpenTypeFewer.zip) |
 
 ### 从源码安装
 
