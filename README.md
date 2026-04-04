@@ -43,7 +43,7 @@ pip install -e .
 ### Run
 
 ```bash
-python -m voicepad
+opentypefewer
 ```
 
 OpenTypeFewer starts in the system tray. The Whisper model downloads automatically on first use.
@@ -140,7 +140,7 @@ See [config.example.yaml](./config.example.yaml) for all options.
 ## CLI Options
 
 ```
-python -m voicepad [OPTIONS]
+opentypefewer [OPTIONS]
 
 Options:
   --config PATH         Config file path (default: ~/.opentypefewer/config.yaml)

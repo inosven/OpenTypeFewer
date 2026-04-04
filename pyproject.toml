@@ -32,6 +32,7 @@ dependencies = [
 ]
 
 [project.scripts]
+opentypefewer = "voicepad.__main__:main"
 voicepad = "voicepad.__main__:main"
 
 [tool.setuptools.packages.find]

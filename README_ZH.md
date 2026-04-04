@@ -43,7 +43,7 @@ pip install -e .
 ### 运行
 
 ```bash
-python -m voicepad
+opentypefewer
 ```
 
 OpenTypeFewer 启动后常驻系统托盘。Whisper 模型会在首次使用时自动下载。
@@ -140,7 +140,7 @@ macOS 首次启动时需要授予两个权限：
 ## 命令行选项
 
 ```
-python -m voicepad [选项]
+opentypefewer [选项]
 
 选项:
   --config PATH         配置文件路径（默认：~/.opentypefewer/config.yaml）
