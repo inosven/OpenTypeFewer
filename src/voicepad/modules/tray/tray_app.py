@@ -2,18 +2,21 @@
 
 import logging
 import os
+import platform
 import sys
 import threading
 from pathlib import Path
 
 from PIL import Image
 
+IS_MACOS = platform.system() == "Darwin"
+
 logger = logging.getLogger("voicepad.tray")
 
 ICON_FILE_MAP = {
-    "idle": "voicepad_idle.png",
-    "recording": "voicepad_recording.png",
-    "processing": "voicepad_processing.png",
+    "idle": "opentypefewer_tray.png",
+    "recording": "logo_recording.png",
+    "processing": "logo_processing.png",
 }
 
 
@@ -31,7 +34,7 @@ def _load_tray_icon(icon_state: str) -> Image.Image:
     if icon_path.exists():
         return Image.open(str(icon_path))
 
-    fallback_path = icons_dir / "voicepad.png"
+    fallback_path = icons_dir / "opentypefewer_tray.png"
     if fallback_path.exists():
         return Image.open(str(fallback_path))
 
@@ -64,6 +67,7 @@ class TrayApp:
 
     def _on_tray_ready(self, icon) -> None:
         icon.visible = True
+        self._set_template_icon(icon)
         self.voicepad_app.on_tray_ready()
 
     def rebuild_menu(self) -> None:
@@ -81,8 +85,25 @@ class TrayApp:
             return
         try:
             self.tray_icon.icon = _load_tray_icon(icon_state)
+            if icon_state == "idle":
+                self._set_template_icon(self.tray_icon)
+            elif IS_MACOS:
+                try:
+                    ns_image = self.tray_icon._status_item.button().image()
+                    ns_image.setTemplate_(False)
+                except Exception:
+                    pass
         except Exception as icon_error:
             logger.warning(f"Icon update failed: {icon_error}")
+
+    def _set_template_icon(self, icon) -> None:
+        if not IS_MACOS:
+            return
+        try:
+            ns_image = icon._status_item.button().image()
+            ns_image.setTemplate_(True)
+        except Exception:
+            pass
 
     def quit_tray(self) -> None:
         if self.tray_icon:

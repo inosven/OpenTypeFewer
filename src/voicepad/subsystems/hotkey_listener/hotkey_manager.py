@@ -123,13 +123,23 @@ class HotkeyManager:
         logger.info("Hotkey listener stopped")
 
     def update_hotkeys(self, config_manager) -> None:
-        self._stop_listener()
         self.trigger_mode = config_manager.get_value("trigger_mode", "hold")
         self.record_hotkey = config_manager.get_value("hotkey", "ctrl+shift+space")
         self.switch_hotkey = config_manager.get_value("mode_switch_hotkey", "")
         self.preset_list = config_manager.get_value("presets", [])
-        if self.running:
-            self._start_listener()
+
+        self._record_keys = _parse_hotkey_combo(self.record_hotkey)
+        self._switch_keys = _parse_hotkey_combo(self.switch_hotkey) if self.switch_hotkey else frozenset()
+        self._preset_keys = []
+        for idx, preset in enumerate(self.preset_list):
+            hk = preset.get("hotkey", "")
+            if hk:
+                self._preset_keys.append((_parse_hotkey_combo(hk), idx))
+
+        self._fired_tags.clear()
+        self.record_key_held = False
+        self.toggle_recording = False
+
         logger.info(
             f"Hotkeys updated: record={self.record_hotkey}, "
             f"switch={self.switch_hotkey}, mode={self.trigger_mode}, "

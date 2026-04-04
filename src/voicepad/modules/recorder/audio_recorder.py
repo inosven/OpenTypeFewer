@@ -32,6 +32,7 @@ class AudioRecorder:
         self.audio_frames = []
         self.recording_stream = None
         self.recording_lock = threading.Lock()
+        self._stream_ready = threading.Event()
 
     def start_recording(self) -> bool:
         # If recording_active is stuck True (e.g. from a previous race condition),
@@ -51,30 +52,68 @@ class AudioRecorder:
         import sounddevice
 
         self.audio_frames = []
+        self._stream_ready.clear()
         self.recording_active = True
 
-        try:
-            stream_kwargs = {
-                "samplerate": self.sample_rate,
-                "channels": self.audio_channels,
-                "dtype": "int16",
-                "callback": self._audio_callback,
-            }
-            if self.input_device is not None:
-                stream_kwargs["device"] = int(self.input_device)
+        device_id = int(self.input_device) if self.input_device is not None else None
+        device_info = self._query_device_info(sounddevice, device_id)
+        device_max_channels = device_info.get("max_input_channels", 0) if device_info else 0
+        device_native_rate = device_info.get("default_samplerate", 0) if device_info else 0
 
-            self.recording_stream = sounddevice.InputStream(**stream_kwargs)
+        channels_to_try = self.audio_channels
+        if device_max_channels and channels_to_try > device_max_channels:
+            logger.info(
+                f"Requested {channels_to_try}ch but device supports {device_max_channels}ch, adapting"
+            )
+            channels_to_try = device_max_channels
+
+        rate_to_try = self.sample_rate
+        if device_native_rate and device_native_rate != self.sample_rate:
+            rate_to_try = int(device_native_rate)
+            logger.info(
+                f"Device native rate {rate_to_try}Hz differs from config {self.sample_rate}Hz, "
+                f"using native rate (will resample on save)"
+            )
+
+        self._actual_sample_rate = rate_to_try
+
+        try:
+            self.recording_stream = self._open_input_stream(
+                sounddevice, channels_to_try, device_id, rate_to_try
+            )
             self.recording_stream.start()
-            logger.info("Recording started")
+            self._stream_ready.set()
+            if not self.recording_active:
+                logger.info("Stream opened but stop already requested, leaving cleanup to stop_recording")
+                return False
+            logger.info(f"Recording started ({channels_to_try}ch, {rate_to_try}Hz)")
             return True
-        except sounddevice.PortAudioError as audio_error:
-            logger.error(f"Failed to start recording: {audio_error}")
-            self.recording_active = False
-            return False
+        except sounddevice.PortAudioError:
+            fallback_channels = device_max_channels or (2 if channels_to_try == 1 else 1)
+            if fallback_channels == channels_to_try:
+                fallback_channels = 2 if channels_to_try == 1 else 1
+            logger.warning(
+                f"Failed with {channels_to_try}ch/{rate_to_try}Hz, "
+                f"retrying with {fallback_channels}ch"
+            )
+            try:
+                self.recording_stream = self._open_input_stream(
+                    sounddevice, fallback_channels, device_id, rate_to_try
+                )
+                self.recording_stream.start()
+                self._stream_ready.set()
+                if not self.recording_active:
+                    logger.info("Fallback stream opened but stop already requested, leaving cleanup to stop_recording")
+                    return False
+                logger.info(f"Recording started ({fallback_channels}ch, {rate_to_try}Hz, fallback)")
+                return True
+            except sounddevice.PortAudioError as audio_error:
+                logger.error(f"Failed to start recording: {audio_error}")
+                self._stream_ready.set()
+                self.recording_active = False
+                return False
 
     def stop_recording(self) -> str:
-        # In hold mode, the stop thread can race ahead of the start thread.
-        # Wait briefly for recording_active to be set before giving up.
         if not self.recording_active:
             deadline = time.time() + 0.4
             while not self.recording_active and time.time() < deadline:
@@ -85,6 +124,10 @@ class AudioRecorder:
             return None
 
         self.recording_active = False
+
+        stream_opened = self._stream_ready.wait(timeout=3.0)
+        if not stream_opened:
+            logger.warning("stop_recording: stream never opened within timeout")
 
         if self.recording_stream:
             try:
@@ -99,6 +142,14 @@ class AudioRecorder:
                 logger.warning("No audio frames captured")
                 return None
             audio_data = np.concatenate(self.audio_frames, axis=0)
+
+        if audio_data.ndim == 2 and audio_data.shape[1] > 1:
+            audio_data = audio_data.mean(axis=1).astype(np.int16)
+
+        actual_rate = getattr(self, "_actual_sample_rate", self.sample_rate)
+        if actual_rate != self.sample_rate:
+            audio_data = self._resample_audio(audio_data, actual_rate, self.sample_rate)
+            logger.info(f"Resampled audio from {actual_rate}Hz to {self.sample_rate}Hz")
 
         duration = len(audio_data) / self.sample_rate
         if duration < 0.5:
@@ -121,8 +172,9 @@ class AudioRecorder:
         with self.recording_lock:
             if not self.audio_frames:
                 return False
+            actual_rate = getattr(self, "_actual_sample_rate", self.sample_rate)
             frames_for_duration = int(
-                self.silence_duration * self.sample_rate / 1024
+                self.silence_duration * actual_rate / 1024
             )
             recent_frames = self.audio_frames[-frames_for_duration:]
 
@@ -132,6 +184,30 @@ class AudioRecorder:
         combined_audio = np.concatenate(recent_frames, axis=0)
         amplitude_value = np.abs(combined_audio).mean()
         return amplitude_value < self.silence_threshold
+
+    def _open_input_stream(self, sounddevice_module, channel_count, device_id, sample_rate=None):
+        stream_kwargs = {
+            "samplerate": sample_rate or self.sample_rate,
+            "channels": channel_count,
+            "dtype": "int16",
+            "callback": self._audio_callback,
+        }
+        if device_id is not None:
+            stream_kwargs["device"] = device_id
+        return sounddevice_module.InputStream(**stream_kwargs)
+
+    def _query_device_info(self, sounddevice_module, device_id) -> dict:
+        try:
+            query_id = device_id if device_id is not None else sounddevice_module.default.device[0]
+            return sounddevice_module.query_devices(query_id)
+        except Exception:
+            return {}
+
+    def _resample_audio(self, audio_data, source_rate: int, target_rate: int):
+        from scipy.signal import resample
+        target_length = int(len(audio_data) * target_rate / source_rate)
+        resampled = resample(audio_data.astype(np.float64), target_length)
+        return resampled.astype(np.int16)
 
     def _audio_callback(self, indata, frames, time_info, status) -> None:
         if status:

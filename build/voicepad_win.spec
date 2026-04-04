@@ -80,6 +80,7 @@ a = Analysis(
         "voicepad.modules.recorder.audio_recorder",
         "voicepad.modules.tray.tray_app",
         "voicepad.modules.main_window.window_api",
+        "voicepad.asr_subprocess",
         "voicepad.panel_subprocess",
         "voicepad.settings_subprocess",
         "voicepad.subsystems.asr.asr_engine",
@@ -138,7 +139,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    icon=os.path.join(project_root, "icons", "voicepad.png"),
+    icon=os.path.join(project_root, "icons", "opentypefewer_tray.png"),
 )
 
 coll = COLLECT(

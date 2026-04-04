@@ -472,13 +472,7 @@ class VoicePadApp:
             if clipboard_success:
                 import time
                 time.sleep(0.05)
-                from pynput.keyboard import Controller as KbController, Key
-                _kb = KbController()
-                modifier_key = Key.cmd if IS_MACOS else Key.ctrl
-                with _kb.pressed(modifier_key):
-                    _kb.press('v')
-                    _kb.release('v')
-                logger.info("Auto-pasted to cursor position")
+                self._auto_paste()
 
                 preview_text = final_text[:50]
                 if len(final_text) > 50:
@@ -507,6 +501,31 @@ class VoicePadApp:
             self.tray_app.update_icon("idle")
             self.write_ui_status("ready")
             self._cleanup_temp_audio(audio_file_path)
+
+    def _auto_paste(self) -> None:
+        if IS_MACOS:
+            import subprocess
+            try:
+                subprocess.run(
+                    ["osascript", "-e",
+                     'tell application "System Events" to keystroke "v" using command down'],
+                    timeout=5,
+                )
+                logger.info("Auto-pasted to cursor position")
+            except subprocess.TimeoutExpired:
+                logger.warning(
+                    "Auto-paste timed out — grant Accessibility permission for OpenTypeFewer "
+                    "in System Settings → Privacy & Security → Accessibility"
+                )
+            except Exception as paste_error:
+                logger.warning(f"Auto-paste failed: {paste_error}")
+        else:
+            from pynput.keyboard import Controller as KbController, Key
+            kb_controller = KbController()
+            with kb_controller.pressed(Key.ctrl):
+                kb_controller.press("v")
+                kb_controller.release("v")
+            logger.info("Auto-pasted to cursor position")
 
     def _cleanup_temp_audio(self, audio_file_path: str) -> None:
         try:

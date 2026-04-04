@@ -13,6 +13,13 @@ site_packages = site.getsitepackages()[0]
 
 webview_path = os.path.join(site_packages, "webview")
 
+faster_whisper_assets_path = None
+for sp in site.getsitepackages():
+    candidate = os.path.join(sp, "faster_whisper", "assets")
+    if os.path.isdir(candidate):
+        faster_whisper_assets_path = candidate
+        break
+
 frontend_dir = os.path.join(
     project_root, "src", "voicepad", "modules", "main_window", "frontend"
 )
@@ -25,6 +32,8 @@ datas = [
 ]
 if os.path.isdir(webview_path):
     datas.append((webview_path, "webview"))
+if faster_whisper_assets_path:
+    datas.append((faster_whisper_assets_path, os.path.join("faster_whisper", "assets")))
 
 a = Analysis(
     [os.path.join(project_root, "src", "voicepad", "__main__.py")],
@@ -43,6 +52,7 @@ a = Analysis(
         "voicepad.modules.recorder.audio_recorder",
         "voicepad.modules.tray.tray_app",
         "voicepad.modules.main_window.window_api",
+        "voicepad.asr_subprocess",
         "voicepad.panel_subprocess",
         "voicepad.settings_subprocess",
         "voicepad.subsystems.asr.asr_engine",
@@ -88,7 +98,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    icon=os.path.join(project_root, "icons", "voicepad.png"),
+    icon=os.path.join(project_root, "icons", "opentypefewer.icns"),
 )
 
 coll = COLLECT(
@@ -105,7 +115,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name="OpenTypeFewer.app",
-    icon=os.path.join(project_root, "icons", "voicepad.png"),
+    icon=os.path.join(project_root, "icons", "opentypefewer.icns"),
     bundle_identifier="com.opentypefewer.app",
     info_plist={
         "LSUIElement": True,
