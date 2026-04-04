@@ -30,7 +30,11 @@ Local, open-source voice-to-clipboard tool. Speak, and paste.
 
 ### Download
 
-[Latest Release](https://github.com/inosven/OpenTypeFewer/releases/latest) — Windows (CUDA / CPU) and macOS builds available.
+| Platform | Download |
+| -------- | -------- |
+| macOS | [OpenTypeFewer-macos.dmg](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-macos.dmg) |
+| Windows (CUDA) | [OpenTypeFewer-win-cuda.zip](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-win-cuda.zip) |
+| Windows (CPU) | [OpenTypeFewer-win-cpu.zip](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-win-cpu.zip) |
 
 ### Install from Source
 

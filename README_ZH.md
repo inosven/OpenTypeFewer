@@ -30,7 +30,11 @@
 
 ### 下载安装
 
-[最新版本下载](https://github.com/inosven/OpenTypeFewer/releases/latest) — 提供 Windows（CUDA / CPU）和 macOS 版本。
+| 平台 | 下载 |
+| ---- | ---- |
+| macOS | [OpenTypeFewer-macos.dmg](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-macos.dmg) |
+| Windows（CUDA） | [OpenTypeFewer-win-cuda.zip](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-win-cuda.zip) |
+| Windows（CPU） | [OpenTypeFewer-win-cpu.zip](https://github.com/inosven/OpenTypeFewer/releases/latest/download/OpenTypeFewer-win-cpu.zip) |
 
 ### 从源码安装
 
